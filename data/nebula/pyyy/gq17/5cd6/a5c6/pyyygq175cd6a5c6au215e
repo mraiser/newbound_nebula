@@ -1,0 +1,1 @@
+{"data":{"java":"throw new Exception(\"uninstall_service not implemented\");","import":"import org.json.*;\nimport com.newbound.robot.*;\n","returntype":"JSONObject","params":[{"name":"servicename","type":"String"}],"desc":""},"id":"pyyygq175cd6a5c6au215e","sessionid":"jvgvwg16b7a4d277bt3","time":1605470687489,"addr":"/0:0:0:0:0:0:0:1:36934","username":"admin"}

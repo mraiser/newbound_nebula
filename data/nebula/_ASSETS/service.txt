@@ -1,0 +1,60 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          SERVICENAME
+# Required-Start:    $local_fs $remote_fs $network $syslog
+# Required-Stop:     $local_fs $remote_fs $network $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# X-Interactive:     true
+# Short-Description: Start/stop SERVICENAME service
+### END INIT INFO
+ 
+case $1 in
+    start)
+        if [ -f ROOTDIR/networks/SERVICENAME/pid ]; then
+            PID=$(cat ROOTDIR/networks/SERVICENAME/pid);
+            echo "Stopping SERVICENAME ..."
+            kill $PID;
+            echo "SERVICENAME stopped ..."
+            rm ROOTDIR/networks/SERVICENAME/pid
+        fi
+
+        echo "Starting SERVICENAME ..."
+        if [ ! -f ROOTDIR/networks/SERVICENAME/pid ]; then
+            nohup ROOTDIR/bin/nebula -config ROOTDIR/networks/SERVICENAME/config.yml 2>> /dev/null >> /dev/null &
+            echo $! > ROOTDIR/networks/SERVICENAME/pid
+            echo "SERVICENAME started ..."
+        else
+            echo "SERVICENAME is already running ..."
+        fi
+    ;;
+    stop)
+        if [ -f ROOTDIR/networks/SERVICENAME/pid ]; then
+            PID=$(cat ROOTDIR/networks/SERVICENAME/pid);
+            echo "Stopping SERVICENAME ..."
+            kill $PID;
+            echo "SERVICENAME stopped ..."
+            rm ROOTDIR/networks/SERVICENAME/pid
+        else
+            echo "SERVICENAME is not running ..."
+        fi
+    ;;
+    restart)
+        if [ -f ROOTDIR/networks/SERVICENAME/pid ]; then
+            PID=$(cat ROOTDIR/networks/SERVICENAME/pid);
+            echo "Stopping SERVICENAME ...";
+            kill $PID;
+            echo "SERVICENAME stopped ...";
+            rm ROOTDIR/networks/SERVICENAME/pid
+ 
+            echo "Starting SERVICENAME ..."
+            nohup ROOTDIR/bin/nebula -config ROOTDIR/networks/SERVICENAME/config.yml 2>> /dev/null >> /dev/null &
+            echo $! > ROOTDIR/networks/SERVICENAME/pid
+            echo "SERVICENAME started ..."
+        else
+            echo "SERVICENAME is not running ..."
+        fi
+    ;;
+esac
+
+
