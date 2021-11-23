@@ -11,7 +11,8 @@ https://github.com/mraiser/newbound
 # Installation
 1. Move the data/nebula and runtime/nebula folders into your Newbound installation's data and runtime folders, respectively
 2. Launch the Newbound software
-3. Publish the "nebula" control in the "nebula" library using the Metabot app
+3. Toggle ON the "Inactive" apps in the Metabot app and select "Nebula"
+4. Click the "ACTIVATE" button
 4. Restart the Newbound software
 
 *Instead of moving the data/nebula and runtime/nebula folders you can create symbolic links to them, leaving your git project folder intact for easy updating*
