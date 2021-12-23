@@ -24,6 +24,8 @@ runtime/nebula/bin/
 runtime/nebula/html/
 runtime/nebula/networks/
 runtime/nebula/botd.properties
+data/nebula/version.txt
+
 
 # IntelliJ
 out/
