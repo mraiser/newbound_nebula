@@ -1,1 +1,0 @@
-package com.newbound.robot.published;public class Nebula extends com.newbound.robot.MetaBot {	public Nebula()	{		super();				DB = "nebula";		ID = "tjsusx175c2953d7ct1109";	}		public String getServiceName() 	{		return "nebula";	}}

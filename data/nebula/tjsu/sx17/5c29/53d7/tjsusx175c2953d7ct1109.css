@@ -1,0 +1,19 @@
+.whichpeer{
+  margin-bottom:20px;
+}
+
+.installupdatebutton, .installappremotely, .installednetworks, .rebootpeerbutton, .networkpage{
+  display: none;
+}
+
+.network-titlebar {
+  padding-bottom:0px !important;
+}
+
+.network-navbar {
+  top:40px !important;
+}
+
+.backbutton{
+  cursor:pointer;
+}

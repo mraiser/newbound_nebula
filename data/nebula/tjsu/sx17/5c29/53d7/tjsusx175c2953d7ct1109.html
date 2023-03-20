@@ -1,0 +1,123 @@
+<div class='data-control' data-control='app:ui:{}'></div>
+<div class='background'></div>
+<div class='wrap homepage' style='display:none;'>
+  <div class='titlebar'>
+    <a href='../app/index.html'><img src='../app/asset/app/menu_icon.png' class='menuicon'></a>
+    Nebula
+  </div>
+  <div class='main'>
+    <div class='whichpeer'></div>
+    <div>
+      Installed Version:
+      <span class='nebulaversion'></span>
+      <a class="refreshversion">
+        <img class="roundbutton-small" src="../app/asset/app/refresh_icon-green.png">
+      </a>      
+    </div>
+
+    <div class="releasemanagement">
+      <br>
+      <button class="checkupdatebutton coloredbutton">
+        Check for update
+      </button>
+      <div class='updatemsg'></div>
+      <br>
+      <div class='downloadselect'></div>
+      <br>
+      <button class="installupdatebutton coloredbutton">
+        Install
+      </button>
+    </div>
+    
+    <div class="installappremotely">
+      <button class="installappbutton coloredbutton">
+        Install App
+      </button>
+      <button class="rebootpeerbutton coloredbutton">
+        Reboot Device
+      </button>
+    </div>
+    
+
+    <div class="installednetworks">
+      <h1>
+        <a class="addnetworkbutton">
+          <img class="roundbutton" src="../app/asset/app/add_icon.png">
+        </a>
+        Networks
+      </h1>
+      <div class="foundnetworks"></div>
+    </div>
+
+    
+  </div>
+</div>
+<div class='wrap networkpage' style='display:none;'>
+  <div class='titlebar network-titlebar'>
+    <img src='../app/asset/app/arrow-left.png' class='menuicon backbutton'>
+    Nebula / <span class="selectedpeername">local</span> / <span class="selectednetworkname"></span>
+  </div>
+  <div class='navbar network-navbar'>
+    <div class='navbar-tab network-tab selected' data-id='network-tab1'>Service</div>
+    <div class='navbar-tab network-tab' data-id='network-tab2'>Lighthouses</div>
+    <div class='navbar-tab network-tab' data-id='network-tab3'>Members</div>
+    <div class='navbar-tab network-tab' data-id='network-tab4'>Advanced</div>
+  </div>
+  <div class='main'>
+    <div class='tab-content network-tab1 selected' id='network-tab1'>
+      <h4 class='networkownerspan'></h4>
+      <div class='networkservicespan'></div>
+      <br>
+      <div class='networkrunningspan'></div>
+      <br>
+      <label class="plaincheckbox">
+        <input type='checkbox' id='lighthousecheckbox' class='lighthousecheckbox'>
+        <span>Lighthouse</span>
+      </label>
+      <br><br>
+      <div class='textinputlabel'>Network Interface</div>
+      <input type='text' class='textinput networkhost' placeholder='IP Address to listen on'>
+      <br><br>
+      <div class='textinputlabel'>Port</div>
+      <input type='number' class='textinput networkport' placeholder='Port to listen on'>
+      <br><br>
+      <div class='textinputlabel'>Private Subnet</div>
+      <input type='text' class='textinput networksubnet' placeholder='Example: 192.168.100.X/24'>
+      <br><br>
+      <div class='textinputlabel'>Private IP Address</div>
+      <input type='text' class='textinput networkipaddr' placeholder='IP Address on this Nebula network'>
+      <br><br>
+      <div class='textinputlabel'>Groups</div>
+      <input type='text' class='textinput networkgroups' placeholder='Comma separated, no spaces'>
+      <br><br>
+    </div>
+    <div class='tab-content network-tab2' id='network-tab2'>
+      <h1>
+        <img class="addlighthousebutton roundbutton" src="../app/asset/app/add_icon.png">
+        Remote Lighthouses
+      </h1>
+      <div class='selectednetworklighthouses'></div>
+    </div>
+    <div class='tab-content network-tab3' id='network-tab3'>
+      <h1>
+        <img class="addmemberbutton roundbutton" src="../app/asset/app/add_icon.png">
+        Remote Members
+      </h1>
+      <div class="selectednetworkmembers"></div>
+    </div>
+    <div class='tab-content network-tab4' id='network-tab4'>
+      <label class="plaincheckbox">
+        <input type='checkbox' id='yaml-checkbox' class='yaml-checkbox'>
+        <span>Override settings in other tabs</span>
+      </label>
+      <br><br>
+      <div class='textinputlabel'>RAW YAML</div>
+      <textarea class="config-yml textinput" type="text" rows= "10" cols="60" id="config-yml" style="min-width:100%;"></textarea>
+    </div>
+    <br>
+    <button class="saveconfigbutton coloredbutton">
+      Save configuration
+    </button>
+  </div>
+</div>
+<div class='popmeup card hideme wrap'></div>
