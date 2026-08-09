@@ -1,34 +1,14 @@
-# Newbound files
-bin/
-generated/
+# generated build artifacts
+nebula/target/
 
-# for mixed in Java files
-*.class
-
-# library version files
-data/botmanager/
-data/metabot/
-data/peerbot/
-data/securitybot/
-data/threejs/
-
-# runtime data and local properties
-runtime/botmanager/
-runtime/metabot/
-runtime/peerbot/
-runtime/securitybot/
-data/runtime
-converted
-tmp/mime
+# local runtime values — the nebula binary, your networks and keys,
+# per-instance properties. Never committed.
 runtime/nebula/bin/
 runtime/nebula/html/
 runtime/nebula/networks/
 runtime/nebula/botd.properties
 
-# IntelliJ
-out/
-# PyCharm project
-.idea/
-
-# Mac ignores
+# OS / IDE noise
 .DS_Store
+.idea/
+out/

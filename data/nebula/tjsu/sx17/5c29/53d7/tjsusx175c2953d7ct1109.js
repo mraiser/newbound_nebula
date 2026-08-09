@@ -240,19 +240,18 @@ function selectNetwork(name){
   
   send_members(name, function(result){
     me.members = result.data;
-    newhtml = '<table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp"><thead><tr><th class="mdl-data-table__cell--non-numeric">Peer</th><th class="mdl-data-table__cell--non-numeric">Private IP</th><th class="mdl-data-table__cell--non-numeric">groups</th><th class="mdl-data-table__cell--non-numeric"></th><th class="mdl-data-table__cell--non-numeric"></th></tr></thead><tbody>';
+    newhtml = '<table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp"><thead><tr><th class="mdl-data-table__cell--non-numeric">Peer</th><th class="mdl-data-table__cell--non-numeric">Private IP</th><th class="mdl-data-table__cell--non-numeric">groups</th><th class="mdl-data-table__cell--non-numeric"></th></tr></thead><tbody>';
     for (var id in result.data) if (result.data[id].ip_address){
       var p = document.peers[id];
       var name = p ? p.name + '<br><span class="member_peer">'+id+'</span>' : id;
       var ip = result.data[id].ip_address;
       var groups = result.data[id].groups;
       if (!groups) groups = '';
-      newhtml += '<tr class="memberrow_'+id+'" data-peer="'+id+'"><td class="mdl-data-table__cell--non-numeric">'+name+'</td><td class="mdl-data-table__cell--non-numeric">'+ip+'</td><td class="mdl-data-table__cell--non-numeric">'+groups+'</td><td class="mdl-data-table__cell--non-numeric"><button class="updatememberbutton mdl-button mdl-js-button mdl-button--icon"><i class="material-icons">update</i></button></td><td class="mdl-data-table__cell--non-numeric"><button class="deletememberbutton mdl-button mdl-js-button mdl-button--icon"><i class="material-icons">delete</i></button></td></tr>';
+      newhtml += '<tr class="memberrow_'+id+'" data-peer="'+id+'"><td class="mdl-data-table__cell--non-numeric">'+name+'</td><td class="mdl-data-table__cell--non-numeric">'+ip+'</td><td class="mdl-data-table__cell--non-numeric">'+groups+'</td><td class="mdl-data-table__cell--non-numeric"><button class="deletememberbutton mdl-button mdl-js-button mdl-button--icon"><i class="material-icons">delete</i></button></td></tr>';
     }
     newhtml += '</tbody></table>';
     var el = $(ME).find('.selectednetworkmembers');
     el.html(newhtml);
-    el.find('.updatememberbutton').click(updateMember);
     el.find('.deletememberbutton').click(deleteMember);
   }, me.peer);
 }
@@ -322,12 +321,14 @@ function stopService(){
 }
 
 
-function updateMember(){
-  alert("NO");
-}
-
 function deleteMember(){
-  alert("NO");
+  var row = $(this).closest('tr');
+  var id = row.data('peer');
+  if (!confirm('Remove member '+id+' from '+me.selectednetwork.name+'? Its issued certificate stays valid until it expires or the CA is rotated.')) return;
+  send_remove_member(me.selectednetwork.name, String(id), function(result){
+    if (result.status != 'ok') alert(result.msg);
+    else row.remove();
+  }, me.peer);
 }
 
 function deleteLightHouse(e){
