@@ -1,464 +1,462 @@
-var me = this; 
+var me = this;
 var ME = $('#'+me.UUID)[0];
 
-me.uiReady = function(ui){
-  me.ui = ui;
-  ui.initNavbar(ME);
-  $(ME).find('.homepage').css('display', 'block');
-
-  json('../peer/info', null, function(result){
-    me.mypeerid = result.data.uuid;
-    me.mypeername = result.data.name;
-    var d = {
-      "local": true,
-      "connectedonly": true,
-      "ready": rebuild,
-      "cb": function(val){
-        var b = val == 'local'
-        if (b) me.peer = null;
-        else me.peer = val;
-        $(ME).find('.localonly').css('display', b  ? 'inline-block' : 'none');
-        rebuild();
-      }
-    };
-    installControl($(ME).find('.whichpeer')[0], 'peer', 'peer_select', function(api){}, d);
-  });
+// All state lives here — never parsed back out of the DOM.
+var S = {
+  peer: null,          // selected target peer uuid, or null for local
+  mypeerid: null,
+  mypeername: null,
+  networks: {},        // name -> {name, owner, service, running, config}
+  selected: null,      // name of the open network
+  lighthouses: {},     // working copy for the open network: peerid -> {private_ip, public_ip, port}
+  members: {},
+  releases: null
 };
 
+// ---- outcomes (the envelope is 'ok' even when the command failed:
+// object commands carry the verdict in data.status, string commands in
+// an ERROR prefix — check all three) ----
+function outcome(result){
+  if (!result) return { ok:false, msg:'no response' };
+  if (result.status != 'ok') return { ok:false, msg: result.msg || 'request failed' };
+  var d = result.data;
+  if (d && typeof d == 'object' && d.status == 'err') return { ok:false, msg: d.msg || 'command failed' };
+  if (typeof d == 'string' && d.indexOf('ERROR') == 0) return { ok:false, msg: d };
+  return { ok:true, msg: (typeof d == 'string') ? d : '' };
+}
+
+// ---- status strip: quiet success, readable errors, sticky until dismissed ----
+var statusTimer = null;
+function status(msg, kind){
+  var el = $(ME).find('.nb-status');
+  if (statusTimer) { clearTimeout(statusTimer); statusTimer = null; }
+  if (!msg) { el.attr('hidden', true); return; }
+  el.removeAttr('hidden').removeClass('ok err busy').addClass(kind || 'ok');
+  el.find('.nb-status-msg').text(msg);
+  if (kind == 'ok') statusTimer = setTimeout(function(){ el.attr('hidden', true); }, 4000);
+}
+$(ME).find('.nb-status-x').click(function(){ status(null); });
+
+function busy(sel, on){
+  var el = $(ME).find(sel);
+  if (on) el.attr('disabled', true).addClass('busy');
+  else el.removeAttr('disabled').removeClass('busy');
+}
+
+// ---- boot ----
 me.ready = function(){
-};
-
-function rebuild(){
-  $(ME).find('.nebulaversion').html('<i>Checking remote peer...</i>');
-
-  send_info(function(result){
-    if (result.data) {
-      $(ME).find('.nebulaversion').html(result.data.tag_name+" "+result.data.binary_name);
-      $(ME).find('.releasemanagement').css('display', 'block');
-      $(ME).find('.installappremotely').css('display', 'none');
-      checkNetworks(result);
-    }
-    else {
-      $(ME).find('.nebulaversion').html('The Newbound Nebula app is not running on this peer');
-      $(ME).find('.releasemanagement').css('display', 'none');
-      $(ME).find('.installappremotely').css('display', 'block');
-      $(ME).find('.installednetworks').css('display', 'none');
-    }
-  }, me.peer);
-};
-
-$(ME).find('.addlighthousebutton').click(function(e){
-  editLightHouse(null);
-});
-
-function editLightHouse(e){
-  var d = {};
-  var button = this;
-      
-  d.cb = function(api){
-    var content = $(ME).find('.popmeup'); //el.find('.lhcontent');
-    var d2 = {
-      close: function(){
-        document.body.api.ui.closePopup(d, function(api){});
-      },
-      save: function(data){
-        document.body.api.ui.closePopup(d, function(api){});
-        var lh = extractLightHouses();
-        if (lh[data.peer]) {
-          lh = lh[data.peer];
-          var row = $(ME).find('.lhrow_'+data.peer);
-          var tds = row.find('td');
-          $(tds[1]).text(data.private_ip);
-          $(tds[2]).text(data.public_ip);
-          $(tds[3]).text(data.port);
-        }
-        else {
-          var newhtml = $(buildLHRow(data.peer, data));
-          newhtml.find('.editlighthousebutton').click(editLightHouse);
-          newhtml.find('.deletelighthousebutton').click(deleteLightHouse);
-          $(ME).find('.selectednetworklighthouses').find('tbody').append(newhtml);
-        }
+  json('../peer/info', null, function(result){
+    S.mypeerid = result.data.uuid;
+    S.mypeername = result.data.name;
+    installControl($(ME).find('.whichpeer')[0], 'peer', 'peer_select', function(){}, {
+      local: true,
+      connectedonly: true,
+      ready: refresh,
+      cb: function(val){
+        S.peer = (val == 'local') ? null : val;
+        showHome();
+        refresh();
       }
-    };
-    if (e){
-      var lh = $(button).closest('tr').find('.lighthouse_peer')[0];
-      var peer = $(lh).text();
-      d2.value = extractLightHouse(peer, lh);
-      d2.value.peer = peer;
-    }
-    installControl(content[0], 'nebula', 'lighthouse', function(api){}, d2);
-  };
-  var el = $(ME).find('.popmeup');
-  el.width(340);
-  el.height(400);
-  d.selector = el[0];
-  closeselector: ".closelhbutton",
-  d.modal = true;
-  document.body.api.ui.popup(d, function(api){
-    d.popupapi = api;
-    d.cb();
-  });
-}
-
-function nextIPAddress(){
-  var n = Object.keys(me.members).length+2;
-  var ip_address = $(ME).find('.networksubnet').val();
-  var i = ip_address.indexOf('X');
-  ip_address = ip_address.substring(0,i)+n+ip_address.substring(i+1);
-  return ip_address;
-}
-
-$(ME).find('.addmemberbutton').click(function(e){
-  var val = {
-    "ip_address": nextIPAddress(),
-    "groups": "",
-    "peer": null
-  };
-  popupCredentials(val);
-});
-  
-function popupCredentials(val){
-  var d = {};
-  var button = this;
-  
-  d.cb = function(api){
-    var content = el; //.find('.popmeup');
-    var d2 = {
-      close: function(){
-        document.body.api.ui.closePopup(d, function(api){});
-      },
-      save: function(data){
-        document.body.api.ui.closePopup(d, function(api){});
-        var servicename = me.selectednetwork.name;
-        var target = d2.value.peer;
-        var subnet = $(ME).find('.networksubnet').val();
-        var ipaddress = d2.value.ip_address;
-        var port = $(ME).find('.networkport').val();
-        var owner = me.peer ? me.peer : me.mypeerid;
-        var groups = d2.value.groups;
-        send_add_member(servicename, target, ipaddress, groups, function(result){
-          if (result.status != 'ok') alert(result.msg);
-          else {
-            var ca_crt = result.data.ca_crt;
-            var host_crt = result.data.host_crt;
-            var host_key = result.data.host_key;
-            var lh = extractLightHouses();
-            debugger;
-            send_join_network(servicename, subnet, ipaddress, port, owner, ca_crt, host_crt, host_key, lh, groups, function(result){
-              selectNetwork(me.selectednetwork.name);
-              alert(JSON.stringify(result));
-            }, target);
-          }
-        }, me.peer);
-      }
-    };
-    d2.value = val;
-    installControl(content[0], 'nebula', 'member', function(api){}, d2);
-  };
-  var el = $(ME).find('.popmeup');
-  el.width(340);
-  el.height(340);
-  d.selector = el[0];
-  d.modal = true;
-  document.body.api.ui.popup(d, function(api){
-    d.popupapi = api;
-    d.cb();
-  });
-}
-
-$(ME).find('.addnetworkbutton').click(function(e){
-  var el = $(ME).find('.popmeup');
-  el.width(340);
-  el.height(340);
-  var d = {
-    modal: true,
-    selector: el[0],
-    closeselector: ".closenwbutton",
-    save: function(data){
-      $(d.closeselector).click();
-      send_create_network(d.value.name, d.value.subnet, d.value.port, function(result){
-        console.log(result);
-        rebuild();
-      }, me.peer);
-    }
-  }
-  
-  var n = Object.keys(me.networks).length;
-  d.value = {
-    "subnet": "192.168.10"+(n++)+".X/24",
-    "name": "nebula"+(n++),
-    "port": "424"+n
-  };
-  
-  installControl(el[0], 'nebula', 'network', function(api){
-    document.body.api.ui.popup(d, function(x){
     });
-  }, d);
-});
+  });
+};
 
-function selectNetwork(name){
-  var rdn = me.networks[name];
-  me.selectednetwork = rdn;
-  $(ME).find('.selectednetworkname').text(name);
-  var ownername = document.peers[rdn.owner] ? document.peers[rdn.owner].name : rdn.owner == me.mypeerid ? me.mypeername : rdn.owner;
-  var peername = document.peers[me.peer] ? document.peers[me.peer].name : me.peer == null ? 'local' : me.peer;
-  $(ME).find('.networkownerspan').text('Owner: '+ownername);
-  $(ME).find('.selectedpeername').text(peername);
-  var newhtml = '<label><div class="switch"><input id="appfilter-switch-1" type="checkbox" class="switch-input toggleservicebutton" '+(rdn.service ? ' checked' : '')+'/><span class="switch-label">Service</span></div>Service</label>';
-  $(ME).find('.networkservicespan').html(newhtml).find('.toggleservicebutton').click(function(e){
-    if (rdn.service) uninstallService();
-    else installService();
-  });
-  var newhtml = '<label><div class="switch"><input id="appfilter-switch-2" type="checkbox" class="switch-input togglerunningbutton" '+(rdn.running ? ' checked' : '')+'/><span class="switch-label">Running</span></div>Running</label>';
-  $(ME).find('.networkrunningspan').html(newhtml).find('.togglerunningbutton').click(function(e){
-    if (rdn.running) stopService();
-    else startService();
-  });
-  $(ME).find('.lighthousecheckbox').prop('checked', rdn.config.am_lighthouse);
-  $(ME).find('.yaml-checkbox').prop('checked', rdn.config.use_yaml);
-  $(ME).find('.networkhost').val(rdn.config.host).parent().addClass('is-dirty');
-  $(ME).find('.networksubnet').val(rdn.config.subnet).parent().addClass('is-dirty');
-  $(ME).find('.networkipaddr').val(rdn.config.ip_address).parent().addClass('is-dirty');
-  $(ME).find('.networkport').val(rdn.config.port).parent().addClass('is-dirty');
-  $(ME).find('.networkgroups').val(rdn.config.groups).parent().addClass('is-dirty');
-  $(ME).find('.config-yml').val(rdn.config.yaml).parent().addClass('is-dirty');
-  $(ME).find('.raw-yaml').css('display', rdn.config.use_yaml ? 'block' : 'none');
-  
-  newhtml = '<table class="lht-table" cellspacing="20px"><thead><tr><th class="lht-th">Peer</th><th class="lht-th">Private IP</th><th class="lht-th">Public IP</th><th>Port</th><th class="lht-th"></th><th class="mdl-data-table__cell--non-numeric"></th></tr></thead><tbody>';
-  
-  for (var id in rdn.config.lighthouses){
-    var lh = rdn.config.lighthouses[id];
-    newhtml += buildLHRow(id, lh);
+function peerName(id){
+  if (id == null || id == 'local') return 'local';
+  if (id == S.mypeerid) return S.mypeername;
+  return (document.peers && document.peers[id]) ? document.peers[id].name : id;
+}
+
+// ---- home: engine + network list ----
+function refresh(){
+  $(ME).find('.nebulaversion').text('checking…');
+  $(ME).find('.engine-remote').attr('hidden', true);
+  send_info(function(result){
+    var o = outcome(result);
+    if (!o.ok || !result.data || !result.data.tag_name){
+      $(ME).find('.nebulaversion').text('unavailable');
+      $(ME).find('.installednetworks').attr('hidden', true);
+      $(ME).find('.engine-remote').removeAttr('hidden');
+      if (!o.ok) status('This peer did not answer: ' + o.msg, 'err');
+      return;
+    }
+    var d = result.data;
+    if (d.tag_name == 'Not Installed'){
+      $(ME).find('.nebulaversion').text('not installed — fetch a release below');
+    } else {
+      $(ME).find('.nebulaversion').text(d.tag_name + ' (' + d.binary_name + ')');
+    }
+    renderNetworks(d.networks || []);
+    $(ME).find('.installednetworks').removeAttr('hidden');
+  }, S.peer);
+}
+$(ME).find('.refreshversion').click(refresh);
+
+function renderNetworks(list){
+  S.networks = {};
+  var box = $(ME).find('.foundnetworks').empty();
+  if (!list.length){
+    box.append($('<div class="nb-empty">No networks yet.</div>'));
+    return;
   }
-  
-  newhtml += '</tbody></table>';
-  var el = $(ME).find('.selectednetworklighthouses');
-  el.html(newhtml);
-  
-  el.find('.editlighthousebutton').click(editLightHouse);
-  el.find('.deletelighthousebutton').click(deleteLightHouse);
-  
-  send_members(name, function(result){
-    me.members = result.data;
-    newhtml = '<table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp"><thead><tr><th class="mdl-data-table__cell--non-numeric">Peer</th><th class="mdl-data-table__cell--non-numeric">Private IP</th><th class="mdl-data-table__cell--non-numeric">groups</th><th class="mdl-data-table__cell--non-numeric"></th></tr></thead><tbody>';
-    for (var id in result.data) if (result.data[id].ip_address){
-      var p = document.peers[id];
-      var name = p ? p.name + '<br><span class="member_peer">'+id+'</span>' : id;
-      var ip = result.data[id].ip_address;
-      var groups = result.data[id].groups;
-      if (!groups) groups = '';
-      newhtml += '<tr class="memberrow_'+id+'" data-peer="'+id+'"><td class="mdl-data-table__cell--non-numeric">'+name+'</td><td class="mdl-data-table__cell--non-numeric">'+ip+'</td><td class="mdl-data-table__cell--non-numeric">'+groups+'</td><td class="mdl-data-table__cell--non-numeric"><button class="deletememberbutton mdl-button mdl-js-button mdl-button--icon"><i class="material-icons">delete</i></button></td></tr>';
-    }
-    newhtml += '</tbody></table>';
-    var el = $(ME).find('.selectednetworkmembers');
-    el.html(newhtml);
-    el.find('.deletememberbutton').click(deleteMember);
-  }, me.peer);
-}
-
-$(ME).find('.saveconfigbutton').click(function(e){
-  var lh = extractLightHouses();
-  var d = {};
-  d.host = $(ME).find('.networkhost').val();
-  d.subnet = $(ME).find('.networksubnet').val();
-  d.ip_address = $(ME).find('.networkipaddr').val();
-  d.port = $(ME).find('.networkport').val();
-  d.groups = $(ME).find('.networkgroups').val();
-  d.am_lighthouse = $(ME).find('.lighthousecheckbox').prop("checked");
-  d.lighthouses = lh;
-  d.use_yaml = $(ME).find('.yaml-checkbox').prop("checked");
-  if (d.use_yaml) d.yaml = $(ME).find('.config-yml').val();
-  send_save_config(me.selectednetwork.name, d, function(result){
-    alert(JSON.stringify(result));
-  }, me.peer);
-});
-
-function extractLightHouses(){
-  var lh = {};
-  var els = $(ME).find('.lighthouse_peer');
-  var n = els.length;
-  for (var i=0;i<n;i++){
-    var el = els[i];
-    var peer = $(el).html();
-    lh[peer] = extractLightHouse(peer, el);
+  for (var i in list){
+    var n = list[i];
+    S.networks[n.name] = n;
+    var owned = n.owner == 'local';
+    var row = $('<div class="netrow"></div>').attr('data-name', n.name);
+    row.append($('<span class="dot"></span>').toggleClass('on', !!n.running));
+    row.append($('<span class="netname"></span>').text(n.name));
+    row.append($('<span class="badge"></span>').toggleClass('owner', owned)
+      .text(owned ? 'owner' : 'joined · ' + peerName(n.owner)));
+    if (n.service) row.append($('<span class="badge">service</span>'));
+    row.click(function(){ openNetwork($(this).attr('data-name')); });
+    box.append(row);
   }
-  return lh;
 }
 
-function extractLightHouse(peer, el){
-  var d = {};
-  el = $(el).parent().next();
-  d.private_ip = el.text();
-  el = el.next();
-  d.public_ip = el.text();
-  el = el.next();
-  d.port = el.text(); //Number(el.text());
-  return d;
-}
-
-function installService(){
-  send_install_service(me.selectednetwork.name, function(result){
-    alert(JSON.stringify(result));
-  }, me.peer);
-}
-
-function uninstallService(){
-  send_uninstall_service(me.selectednetwork.name, function(result){
-    alert(JSON.stringify(result));
-  }, me.peer);
-}
-
-function startService(){
-  send_start_service(me.selectednetwork.name, function(result){
-    alert(JSON.stringify(result));
-  }, me.peer);
-}
-
-function stopService(){
-  send_stop_service(me.selectednetwork.name, function(result){
-    alert(JSON.stringify(result));
-  }, me.peer);
-}
-
-
-function deleteMember(){
-  var row = $(this).closest('tr');
-  var id = row.data('peer');
-  if (!confirm('Remove member '+id+' from '+me.selectednetwork.name+'? Its issued certificate stays valid until it expires or the CA is rotated.')) return;
-  send_remove_member(me.selectednetwork.name, String(id), function(result){
-    if (result.status != 'ok') alert(result.msg);
-    else row.remove();
-  }, me.peer);
-}
-
-function deleteLightHouse(e){
-  $(this).closest('tr').remove();
-}
-
-function buildLHRow(id, lh){
-    var p = getByProperty(document.peers, "id", id);
-    var name = p ? p.name + '<br><span class="lighthouse_peer">'+id+'</span>' : id;
-    return '<tr class="lhrow_'+id+'"><td class="lht-td">'+name+'</td><td class="lht-td">'+lh.private_ip+'</td><td class="lht-td">'+lh.public_ip+'</td><td>'+lh.port+'</td><td class="lht-td"><img src="../app/asset/app/pencil_icon.png" class="editlighthousebutton roundbutton-small"></td><td class="lht-td"><img src="../app/asset/app/delete_icon.png" class="deletelighthousebutton roundbutton-small"></td></tr>';
-}
-
-$(ME).find('.backbutton').click(function(){
-  $(ME).find('.networkpage').css('display', 'none');
-  $(ME).find('.homepage').css('display', 'block');
+// ---- engine: release check + install ----
+$(ME).find('.checkupdatebutton').click(function(){
+  var msg = $(ME).find('.updatemsg');
+  $(ME).find('.engine-install').removeAttr('hidden');
+  msg.text('checking releases…');
+  busy('.checkupdatebutton', true);
+  var ctrl = new AbortController();
+  var timer = setTimeout(function(){ ctrl.abort(); }, 10000);
+  fetch('https://api.github.com/repos/slackhq/nebula/releases', { signal: ctrl.signal })
+    .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(list){
+      clearTimeout(timer);
+      busy('.checkupdatebutton', false);
+      msg.text('');
+      S.releases = {};
+      for (var i in list) S.releases[list[i].id] = list[i];
+      installControl($(ME).find('.updatemsg')[0], 'app', 'select', function(){
+        selectVersion(list[0].id);
+      }, { list: list, label: 'Version', cb: selectVersion });
+    })
+    .catch(function(e){
+      clearTimeout(timer);
+      busy('.checkupdatebutton', false);
+      msg.text('');
+      status('Could not reach api.github.com (' + e.message + '). If this instance is offline, download a release elsewhere and install it by URL on a reachable mirror.', 'err');
+    });
 });
 
-$(ME).find('.refreshversion').click(rebuild);
-
-$(ME).find('.installupdatebutton').click(function(e){
-  $(this).css('display', 'none');
-  var url = $(ME).find('.downloadselect').find('select').val();
-  var el = $(ME).find('.updatemsg').find('select');
-  var version = el[0].options[el[0].selectedIndex].text;
-  send_install_release(url, version, function(result){
-    if (result.status != 'ok') me.ui.snackbarMsg("ERROR: "+result.msg, 600);
-    else me.ui.snackbarMsg("Installation complete");
-    $(ME).find('.installupdatebutton').css('display', 'block');
-    rebuild();
-  }, me.peer);
-});
-
-$(ME).find('.installappbutton').click(function(e){
-  $(this).css('display', 'none');
-  $(ME).find('.nebulaversion').html('<i>Installing Nebula app...</i>');
-  var d = "uuid="+me.mypeerid+"&lib=nebula&guid="+me.UUID;
-  json("../peer/remote/"+me.peer+"/dev/install_lib", d, function(result){
-    if (result.status != "ok") me.ui.snackbarMsg("ERROR: "+result.msg);
-    else {
-    
-      json('../peer/remote/'+me.peer+'/app/settings', 'settings={}', function(result){
-        if (result.status != 'ok') me.ui.snackbarMsg("ERROR: "+result.msg);
-        else {
-          let applist = result.data.apps;
-          if (applist != '') applist += ',';
-          applist += 'nebula';
-          var d = {
-            apps: applist
-          };
-          json('../peer/remote/'+me.peer+'/app/settings', 'settings='+encodeURIComponent(JSON.stringify(d)), function(result){
-            if (result.status != 'ok') me.ui.snackbarMsg("ERROR: "+result.msg);
-            else {
-              var loc = window.location.href;
-              window.location.href = loc;
-            }
-          });
-        }
-      });
-    
-    }
-  });
-});
-
-$(ME).find('.checkupdatebutton').click(function(e){
-  $(this).css('display', 'none');
-  $(ME).find('.updatemsg').html('<i>checking for update...</i>');
-  $.getJSON('https://api.github.com/repos/slackhq/nebula/releases', function(result){
-    me.releases = {};
-    for (var i in result){
-      var r = result[i];
-      var tag = r.tag_name;
-      var id = r.id;
-      me.releases[id] = r;
-    }
-    var d = {
-      "list": result,
-      "label": "Select Version",
-      "cb": selectVersion
-    };
-    installControl($(ME).find('.updatemsg')[0], 'app', 'select', function(api){
-      selectVersion(result[0].id);
-    }, d);
-  });
-});
-
-function selectVersion(val){
-  var r = me.releases[val];
+function selectVersion(id){
+  var r = S.releases[id];
   var binaries = [];
   for (var i in r.assets){
-    var o = r.assets[i];
-    if (o.name.startsWith('nebula-')){
-      var d = {
-        "name": o.name.substring(7, o.name.length - 7),
-        "id": o.browser_download_url
-      };
-      binaries.push(d);
-    }
+    var a = r.assets[i];
+    var m = a.name.match(/^nebula-(.+?)\.(tar\.gz|zip)$/);
+    if (m) binaries.push({ name: m[1], id: a.browser_download_url });
   }
+  installControl($(ME).find('.downloadselect')[0], 'app', 'select', function(){
+    $(ME).find('.installupdatebutton').removeAttr('hidden');
+  }, { list: binaries, label: 'Platform' });
+}
+
+$(ME).find('.installupdatebutton').click(function(){
+  var url = $(ME).find('.downloadselect').find('select').val();
+  var vel = $(ME).find('.updatemsg').find('select')[0];
+  var version = vel.options[vel.selectedIndex].text;
+  busy('.installupdatebutton', true);
+  status('Downloading ' + version + ' on ' + peerName(S.peer) + '…', 'busy');
+  send_install_release(url, version, function(result){
+    busy('.installupdatebutton', false);
+    var o = outcome(result);
+    status(o.ok ? 'Installed ' + version : o.msg, o.ok ? 'ok' : 'err');
+    refresh();
+  }, S.peer);
+});
+
+// ---- create network ----
+$(ME).find('.addnetworkbutton').click(function(){
+  var n = 0;
+  while (S.networks['nebula' + (n + 1)]) n++;
+  openModal('network', {
+    value: { name: 'nebula' + (n + 1), subnet: '192.168.' + (100 + n) + '.X/24', port: '' + (4242 + n) },
+    close: closeModal,
+    save: function(v){
+      closeModal();
+      status('Creating ' + v.name + '…', 'busy');
+      send_create_network(v.name, v.subnet, '' + v.port, function(result){
+        var o = outcome(result);
+        status(o.ok ? 'Network ' + v.name + ' created' : o.msg, o.ok ? 'ok' : 'err');
+        refresh();
+      }, S.peer);
+    }
+  });
+});
+
+// ---- network page ----
+function showHome(){
+  $(ME).find('.networkpage').attr('hidden', true);
+  $(ME).find('.homepage').removeAttr('hidden');
+  $(ME).find('.nb-crumb').attr('hidden', true);
+  S.selected = null;
+}
+$(ME).find('.backbutton').click(function(){ showHome(); refresh(); });
+
+$(ME).find('.nb-tab').click(function(){
+  $(ME).find('.nb-tab').removeClass('selected');
+  $(this).addClass('selected');
+  $(ME).find('.nb-tabpane').attr('hidden', true);
+  $(ME).find('.pane-' + $(this).data('tab')).removeAttr('hidden');
+});
+
+function openNetwork(name){
+  var n = S.networks[name];
+  if (!n) return;
+  S.selected = name;
+  S.lighthouses = JSON.parse(JSON.stringify(n.config.lighthouses || {}));
+  var owned = n.owner == 'local';
+
+  $(ME).find('.homepage').attr('hidden', true);
+  $(ME).find('.networkpage').removeAttr('hidden');
+  $(ME).find('.nb-crumb').removeAttr('hidden')
+    .html('/ ' + $('<i>').text(peerName(S.peer)).html() + ' / <b>' + $('<i>').text(name).html() + '</b>');
+  $(ME).find('.networkowner').text(owned ? 'this instance' : peerName(n.owner));
+  if (owned) $(ME).find('.joined-note').attr('hidden', true);
+  else $(ME).find('.joined-note').removeAttr('hidden');
+  if (owned) $(ME).find('.tab-members').removeAttr('hidden');
+  else $(ME).find('.tab-members').attr('hidden', true);
+  if (!owned && $(ME).find('.tab-members').hasClass('selected')) $(ME).find('.nb-tab[data-tab=svc]').click();
+
+  renderServicePane(n);
+  renderLighthouses();
+  if (owned) loadMembers();
+
+  $(ME).find('.f-useyaml').prop('checked', !!n.config.use_yaml);
+  $(ME).find('.f-yaml').val(n.config.yaml || '');
+  $(ME).find('.nb-tab[data-tab=svc]').click();
+}
+
+function renderServicePane(n){
+  var c = n.config;
+  $(ME).find('.svc-installed').prop('checked', !!n.service);
+  $(ME).find('.svc-running').prop('checked', !!n.running);
+  $(ME).find('.f-amlighthouse').prop('checked', !!c.am_lighthouse);
+  $(ME).find('.f-host').val(c.host || '');
+  $(ME).find('.f-port').val(c.port || '');
+  $(ME).find('.f-subnet').val(c.subnet || '');
+  $(ME).find('.f-ipaddr').val(c.ip_address || '');
+  $(ME).find('.f-groups').val(c.groups || '');
+}
+
+// After any service action, re-read reality instead of trusting the click.
+function refreshNetworkPage(){
+  var name = S.selected;
+  send_info(function(result){
+    var o = outcome(result);
+    if (o.ok && result.data && result.data.networks){
+      renderNetworks(result.data.networks);
+      if (name && S.networks[name]){
+        var n = S.networks[name];
+        S.selected = name;
+        $(ME).find('.svc-installed').prop('checked', !!n.service);
+        $(ME).find('.svc-running').prop('checked', !!n.running);
+      }
+    }
+  }, S.peer);
+}
+
+function serviceAction(sendFn, label){
+  busy('.nb-switchrow .btn', true);
+  $(ME).find('.nb-switch').addClass('busy');
+  status(label + '…', 'busy');
+  sendFn(S.selected, function(result){
+    busy('.nb-switchrow .btn', false);
+    $(ME).find('.nb-switch').removeClass('busy');
+    var o = outcome(result);
+    // service commands answer OK or pass through the tool's own words
+    status(o.ok ? (o.msg == 'OK' ? label + ': done' : o.msg) : o.msg, o.ok ? 'ok' : 'err');
+    refreshNetworkPage();
+  }, S.peer);
+}
+
+$(ME).find('.svc-installed').change(function(){
+  serviceAction($(this).prop('checked') ? send_install_service : send_uninstall_service,
+                $(this).prop('checked') ? 'Installing service' : 'Removing service');
+});
+$(ME).find('.svc-running').change(function(){
+  serviceAction($(this).prop('checked') ? send_start_service : send_stop_service,
+                $(this).prop('checked') ? 'Starting' : 'Stopping');
+});
+$(ME).find('.svc-restart').click(function(){ serviceAction(send_restart_service, 'Restarting'); });
+
+// ---- save configuration ----
+$(ME).find('.saveconfigbutton').click(function(){
   var d = {
-    "list": binaries,
-    "label": "Select Binary"
+    host: $(ME).find('.f-host').val(),
+    subnet: $(ME).find('.f-subnet').val(),
+    ip_address: $(ME).find('.f-ipaddr').val(),
+    port: $(ME).find('.f-port').val(),
+    groups: $(ME).find('.f-groups').val(),
+    am_lighthouse: $(ME).find('.f-amlighthouse').prop('checked'),
+    lighthouses: S.lighthouses,
+    use_yaml: $(ME).find('.f-useyaml').prop('checked')
   };
-  installControl($(ME).find('.downloadselect')[0], 'app', 'select', function(api){
-    $(ME).find('.installupdatebutton').css('display', 'block');
-  }, d);
-}
-
-function checkNetworks(result){
-  me.networks = {};
-  $(ME).find('.installednetworks').css('display', 'block');
-  if (result.data.networks && result.data.networks.length > 0){
-    var newhtml = '';
-    for (var i in result.data.networks){
-      var rdn = result.data.networks[i];
-      me.networks[rdn.name] = rdn;
-      var owner = rdn.owner == 'local' ? 'local' : document.peers[rdn.owner] ? document.peers[rdn.owner].name : rdn.owner == me.mypeerid ? me.mypeername : rdn.owner;
-      newhtml += ' <button data-service="'+rdn.name+'" class="networklistbutton '+(rdn.running ? 'colored' : 'accent')+'button networkbutton">'+rdn.name+' ('+owner+')</button>';
-      newhtml += '<br>';
+  if (d.use_yaml) d.yaml = $(ME).find('.f-yaml').val();
+  busy('.saveconfigbutton', true);
+  send_save_config(S.selected, d, function(result){
+    busy('.saveconfigbutton', false);
+    var o = outcome(result);
+    if (o.ok && result.data){
+      S.networks[S.selected].config = result.data;
+      $(ME).find('.f-yaml').val(result.data.yaml || '');
     }
-    $(ME).find('.foundnetworks').html(newhtml).find('button').click(function(e){
-      $(ME).find('.homepage').css('display', 'none');
-      $(ME).find('.networkpage').css('display', 'block');
-      var name = $(this).data('service');
-      selectNetwork(name);
-    });
+    status(o.ok ? 'Configuration saved. Restart the service to apply it.' : o.msg, o.ok ? 'ok' : 'err');
+  }, S.peer);
+});
+
+// ---- lighthouses (state, not DOM) ----
+function renderLighthouses(){
+  var box = $(ME).find('.lighthouselist').empty();
+  var ids = Object.keys(S.lighthouses);
+  if (!ids.length){ box.append($('<div class="nb-empty">No lighthouses. Members behind NAT need at least one.</div>')); return; }
+  var t = $('<table class="nb-table"><thead><tr><th>Peer</th><th>Private IP</th><th>Public IP</th><th>Port</th><th></th><th></th></tr></thead><tbody></tbody></table>');
+  var tb = t.find('tbody');
+  for (var i in ids){
+    (function(id){
+      var lh = S.lighthouses[id];
+      var tr = $('<tr></tr>');
+      tr.append($('<td></td>').append($('<div></div>').text(peerName(id)), $('<div class="peerid"></div>').text(id)));
+      tr.append($('<td></td>').text(lh.private_ip));
+      tr.append($('<td></td>').text(lh.public_ip));
+      tr.append($('<td></td>').text(lh.port));
+      tr.append($('<td></td>').append($('<button class="rowbtn">edit</button>').click(function(){ editLighthouse(id); })));
+      tr.append($('<td></td>').append($('<button class="rowbtn danger">remove</button>').click(function(){
+        delete S.lighthouses[id];
+        renderLighthouses();
+        status('Lighthouse removed from the draft — save the configuration to apply.', 'ok');
+      })));
+      tb.append(tr);
+    })(ids[i]);
   }
-  else $(ME).find('.foundnetworks').html('<i>No networks</i>');
+  box.append(t);
 }
 
-$(document).click(function(event) {
-  window.lastElementClicked = event.target;
-  window.lastClick = event;
+function editLighthouse(id){
+  var v = id ? Object.assign({ peer: id }, S.lighthouses[id]) : null;
+  openModal('lighthouse', {
+    value: v,
+    close: closeModal,
+    save: function(data){
+      closeModal();
+      S.lighthouses[data.peer] = { private_ip: data.private_ip, public_ip: data.public_ip, port: data.port };
+      renderLighthouses();
+      status('Lighthouse noted in the draft — save the configuration to apply.', 'ok');
+    }
+  });
+}
+$(ME).find('.addlighthousebutton').click(function(){ editLighthouse(null); });
+
+// ---- members (owner only) ----
+function connectedPeers(){
+  var out = [];
+  for (var i in document.peers) if (document.peers[i].connected) out.push(i);
+  return out;
+}
+
+function loadMembers(){
+  send_members(S.selected, function(result){
+    var o = outcome(result);
+    S.members = o.ok ? (result.data || {}) : {};
+    renderMembers();
+  }, S.peer);
+}
+
+function renderMembers(){
+  var box = $(ME).find('.memberlist').empty();
+  var nopeers = connectedPeers().length == 0;
+  if (nopeers) $(ME).find('.nopeers-hint').removeAttr('hidden');
+  else $(ME).find('.nopeers-hint').attr('hidden', true);
+  if (nopeers) $(ME).find('.addmemberbutton').attr('disabled', true);
+  else $(ME).find('.addmemberbutton').removeAttr('disabled');
+  var ids = Object.keys(S.members);
+  if (!ids.length){ box.append($('<div class="nb-empty">No members yet.</div>')); return; }
+  var t = $('<table class="nb-table"><thead><tr><th>Peer</th><th>Private IP</th><th>Groups</th><th></th></tr></thead><tbody></tbody></table>');
+  var tb = t.find('tbody');
+  for (var i in ids){
+    (function(id){
+      var m = S.members[id];
+      var tr = $('<tr></tr>');
+      tr.append($('<td></td>').append($('<div></div>').text(peerName(id)), $('<div class="peerid"></div>').text(id)));
+      tr.append($('<td></td>').text(m.ip_address || ''));
+      tr.append($('<td></td>').text(m.groups || ''));
+      tr.append($('<td></td>').append($('<button class="rowbtn danger">remove</button>').click(function(){
+        if (!confirm('Remove ' + peerName(id) + ' from ' + S.selected + '?\n\nIts issued certificate stays valid until it expires or the CA is rotated — removal only stops future re-issue.')) return;
+        send_remove_member(S.selected, id, function(result){
+          var o = outcome(result);
+          status(o.ok ? 'Member removed. The certificate remains valid until expiry or CA rotation.' : o.msg, o.ok ? 'ok' : 'err');
+          loadMembers();
+        }, S.peer);
+      })));
+      tb.append(tr);
+    })(ids[i]);
+  }
+  box.append(t);
+}
+
+// Propose the lowest free host number, checking members, lighthouses, and this host.
+function proposeIP(){
+  var subnet = $(ME).find('.f-subnet').val() || S.networks[S.selected].config.subnet || '';
+  var used = {};
+  for (var id in S.members) if (S.members[id].ip_address) used[S.members[id].ip_address.split('/')[0]] = 1;
+  for (var id in S.lighthouses) if (S.lighthouses[id].private_ip) used[S.lighthouses[id].private_ip] = 1;
+  var own = ($(ME).find('.f-ipaddr').val() || '').split('/')[0];
+  if (own) used[own] = 1;
+  for (var n = 2; n < 255; n++){
+    var ip = subnet.replace('X', '' + n);
+    if (!used[ip.split('/')[0]]) return ip;
+  }
+  return subnet.replace('X', '2');
+}
+
+$(ME).find('.addmemberbutton').click(function(){
+  openModal('member', {
+    value: { ip_address: proposeIP(), groups: '', peer: null },
+    close: closeModal,
+    save: function(data){
+      closeModal();
+      var servicename = S.selected;
+      var target = data.peer;
+      var cfg = S.networks[servicename].config;
+      var subnet = $(ME).find('.f-subnet').val() || cfg.subnet;
+      var port = $(ME).find('.f-port').val() || cfg.port;
+      var owner = S.peer ? S.peer : S.mypeerid;
+      status('Signing a certificate for ' + peerName(target) + '…', 'busy');
+      send_add_member(servicename, target, data.ip_address, data.groups || '', function(result){
+        var o = outcome(result);
+        if (!o.ok){ status('Could not sign the member certificate: ' + o.msg, 'err'); return; }
+        var b = result.data;
+        status('Delivering credentials to ' + peerName(target) + '…', 'busy');
+        send_join_network(servicename, subnet, data.ip_address, '' + port, owner,
+                          b.ca_crt, b.host_crt, b.host_key, S.lighthouses, data.groups || '',
+        function(result2){
+          var o2 = outcome(result2);
+          status(o2.ok ? peerName(target) + ' joined ' + servicename + '. Start its service from the peer selector above.'
+                       : 'Signed, but the peer could not join: ' + o2.msg,
+                 o2.ok ? 'ok' : 'err');
+          loadMembers();
+        }, target);
+      }, S.peer);
+    }
+  });
+});
+
+// ---- modal plumbing: Esc and backdrop close every popup ----
+function openModal(ctl, data){
+  var card = $(ME).find('.popmeup').empty();
+  data.close = closeModal;
+  $(ME).find('.nb-modal').removeAttr('hidden');
+  installControl(card[0], 'nebula', ctl, function(){}, data);
+}
+function closeModal(){
+  $(ME).find('.nb-modal').attr('hidden', true);
+  $(ME).find('.popmeup').empty();
+}
+$(ME).find('.nb-modal').click(function(e){ if (e.target === this) closeModal(); });
+$(document).keydown(function(e){
+  if (e.key == 'Escape' && !$(ME).find('.nb-modal').attr('hidden')) closeModal();
 });
