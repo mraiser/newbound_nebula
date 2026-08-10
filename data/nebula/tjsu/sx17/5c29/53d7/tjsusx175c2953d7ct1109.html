@@ -27,10 +27,16 @@
         <span class="downloadselect"></span>
         <button class="btn btn-primary installupdatebutton" hidden>Install</button>
       </div>
-      <div class="nb-hint engine-remote" hidden>
-        This peer doesn't have the Nebula app. Install it on that peer with the
-        Dev app's git import (<span class="mono">https://github.com/mraiser/newbound_nebula</span>),
-        restart it once, then refresh here.
+      <div class="engine-remote" hidden>
+        <div class="nb-hint">
+          This peer doesn't have the Nebula app yet. Install it from here &mdash;
+          the library streams to the peer over the encrypted peer network and
+          builds itself there.
+        </div>
+        <div class="nb-row">
+          <button class="btn btn-primary installappbutton">Install on this peer</button>
+          <button class="btn rebootpeerbutton" hidden>Reboot device</button>
+        </div>
       </div>
     </section>
 

@@ -8,7 +8,10 @@ Newbound peer you have admin access to — from one UI.
 
 ## Install
 
-This is a drop-in Newbound library. On any Newbound instance:
+Only your **first** instance touches git — rolling the app out to the rest
+of your peers happens inside the app itself ("Install on this peer"
+streams the library over the encrypted peer network; peers never need
+git). To install on that first instance:
 
 1. Open the **Dev** app → shelf → **git import**, and import
    `https://github.com/mraiser/newbound_nebula` (or call

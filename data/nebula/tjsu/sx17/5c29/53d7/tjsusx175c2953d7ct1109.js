@@ -76,8 +76,9 @@ function refresh(){
     if (!o.ok || !result.data || !result.data.tag_name){
       $(ME).find('.nebulaversion').text('unavailable');
       $(ME).find('.installednetworks').attr('hidden', true);
-      $(ME).find('.engine-remote').removeAttr('hidden');
-      if (!o.ok) status('This peer did not answer: ' + o.msg, 'err');
+      // a remote peer without the app gets the in-app P2P install path
+      if (S.peer) $(ME).find('.engine-remote').removeAttr('hidden');
+      else if (!o.ok) status('This instance did not answer: ' + o.msg, 'err');
       return;
     }
     var d = result.data;
@@ -167,6 +168,43 @@ $(ME).find('.installupdatebutton').click(function(){
     status(o.ok ? 'Installed ' + version : o.msg, o.ok ? 'ok' : 'err');
     refresh();
   }, S.peer);
+});
+
+// ---- P2P install: stream the library to a peer that lacks the app ----
+$(ME).find('.installappbutton').click(function(){
+  if (!S.peer) return;
+  busy('.installappbutton', true);
+  status('Streaming the Nebula library to ' + peerName(S.peer) + ' and building it there — this can take a few minutes…', 'busy');
+  var d = 'uuid=' + S.mypeerid + '&lib=nebula';
+  json('../peer/remote/' + S.peer + '/dev/install_lib', d, function(result){
+    busy('.installappbutton', false);
+    var o = outcome(result);
+    if (!o.ok){ status('Install failed: ' + o.msg, 'err'); return; }
+    // activate the app in the peer's config, then one restart finishes it
+    json('../peer/remote/' + S.peer + '/app/settings', 'settings={}', function(result2){
+      var o2 = outcome(result2);
+      if (!o2.ok){ status('Installed, but could not read the peer\'s app settings: ' + o2.msg, 'err'); return; }
+      var applist = result2.data.apps || '';
+      if (applist.split(',').indexOf('nebula') == -1){
+        applist = applist == '' ? 'nebula' : applist + ',nebula';
+      }
+      json('../peer/remote/' + S.peer + '/app/settings', 'settings=' + encodeURIComponent(JSON.stringify({ apps: applist })), function(result3){
+        var o3 = outcome(result3);
+        if (!o3.ok){ status('Installed, but activation failed: ' + o3.msg, 'err'); return; }
+        status('Installed and activated on ' + peerName(S.peer) + '. Reboot that device once to finish — the first install builds its hot-reload crate.', 'ok');
+        $(ME).find('.rebootpeerbutton').removeAttr('hidden');
+      });
+    });
+  });
+});
+
+$(ME).find('.rebootpeerbutton').click(function(){
+  if (!S.peer) return;
+  if (!confirm('Reboot the device running ' + peerName(S.peer) + '?')) return;
+  json('../peer/remote/' + S.peer + '/peer/reboot', null, function(){
+    status('Reboot signal sent to ' + peerName(S.peer) + '. Refresh here once it is back.', 'ok');
+    $(ME).find('.rebootpeerbutton').attr('hidden', true);
+  });
 });
 
 // ---- create network ----
