@@ -1,22 +1,17 @@
-<div class="padme card-header dialog-header">
-  <span class="title">
-    Add Lighthouse
-  </span>
-</div>
-<div class='padme'>
-  <div class='lighthousepeerselector'></div>
-  <br>
-  <div class='textinputlabel'>Private IP Address</div>
-  <input type='text' class='textinput' placeholder='Private IP Address' id="lhprivateip">
-  <br><br>
-  <div class='textinputlabel'>Public IP Address</div>
-  <input type='text' class='textinput' placeholder='Public IP Address' id="lhpublicip">
-  <br><br>
-  <div class='textinputlabel'>Port</div>
-  <input type='number' class='textinput' placeholder='Port Number' id="lhport">
-  <br><br>
-  <button class="savelhbutton coloredbutton">
-    OK
-  </button>
-  <img src="../app/asset/app/close-white.png"  class="closelhbutton roundbutton-small">
+<div class="nbdlg">
+  <div class="nbdlg-head">
+    <span class="nbdlg-title">Lighthouse</span>
+    <button class="nbdlg-x closelhbutton" title="Close">&#10005;</button>
+  </div>
+  <div class="nbdlg-body">
+    <div class="lighthousepeerselector"></div>
+    <label><span class="lbl">private ip</span><input type="text" id="lhprivateip" placeholder="Its address on this overlay"></label>
+    <label><span class="lbl">public ip</span><input type="text" id="lhpublicip" placeholder="Its reachable internet address"></label>
+    <label><span class="lbl">port</span><input type="number" id="lhport" placeholder="Its nebula UDP port"></label>
+    <div class="nbdlg-err" hidden></div>
+  </div>
+  <div class="nbdlg-foot">
+    <button class="btn cancellhbutton">Cancel</button>
+    <button class="btn btn-primary savelhbutton">Save lighthouse</button>
+  </div>
 </div>

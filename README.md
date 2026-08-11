@@ -47,11 +47,13 @@ Open the Nebula app:
   it into its own `runtime/nebula/networks/<name>/`.
 - **Lighthouses** — mark publicly reachable peers so members behind NAT
   can find each other.
-- **Run it** — install the generated systemd unit and start/stop the
-  tunnel per network, on any admin peer, from the same UI.
+- **Run it** — "Run now" launches the tunnel as a supervised child
+  process of Newbound (no systemd, no sudo); list networks in the
+  `start=` key of `runtime/nebula/botd.properties` to auto-start them at
+  boot. The systemd unit install remains available as a legacy option.
 
-All nebula commands are admin-only: they manage keys and shell out to
-`sudo systemctl`.
+All nebula commands are admin-only: they manage keys, spawn processes,
+and (on the legacy path) shell out to `sudo systemctl`.
 
 ## Security notes
 

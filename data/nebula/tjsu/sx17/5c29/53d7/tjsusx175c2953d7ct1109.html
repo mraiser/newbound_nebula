@@ -1,123 +1,124 @@
-<div class='data-control' data-control='app:ui:{}'></div>
-<div class='background'></div>
-<div class='wrap homepage' style='display:none;'>
-  <div class='titlebar'>
-    <a href='../app/index.html'><img src='../app/asset/app/menu_icon.png' class='menuicon'></a>
-    Nebula
+<div class='data-control' data-control='app:tokens:{}' hidden></div>
+
+<div class="nb-app">
+  <header class="nb-head">
+    <a class="nb-home" href="../app/index.html" title="All apps">&#8962;</a>
+    <span class="nb-title">Nebula</span>
+    <span class="nb-crumb" hidden></span>
+    <span class="nb-spacer"></span>
+    <span class="nb-peerbox"><span class="lbl">peer</span><span class="whichpeer"></span></span>
+  </header>
+
+  <div class="nb-status" hidden>
+    <span class="nb-status-msg"></span>
+    <button class="nb-status-x" title="Dismiss">&#10005;</button>
   </div>
-  <div class='main'>
-    <div class='whichpeer'></div>
-    <div>
-      Installed Version:
-      <span class='nebulaversion'></span>
-      <a class="refreshversion">
-        <img class="roundbutton-small" src="../app/asset/app/refresh_icon-green.png">
-      </a>      
-    </div>
 
-    <div class="releasemanagement">
-      <br>
-      <button class="checkupdatebutton coloredbutton">
-        Check for update
-      </button>
-      <div class='updatemsg'></div>
-      <br>
-      <div class='downloadselect'></div>
-      <br>
-      <button class="installupdatebutton coloredbutton">
-        Install
-      </button>
-    </div>
-    
-    <div class="installappremotely">
-      <button class="installappbutton coloredbutton">
-        Install App
-      </button>
-      <button class="rebootpeerbutton coloredbutton">
-        Reboot Device
-      </button>
-    </div>
-    
+  <main class="nb-main homepage">
+    <section class="nb-panel enginebox">
+      <div class="lbl">engine</div>
+      <div class="nb-row engine-row">
+        <span class="nebulaversion">checking&hellip;</span>
+        <button class="btn refreshversion">Refresh</button>
+        <button class="btn checkupdatebutton">Check for updates</button>
+      </div>
+      <div class="nb-row engine-install" hidden>
+        <span class="updatemsg"></span>
+        <span class="downloadselect"></span>
+        <button class="btn btn-primary installupdatebutton" hidden>Install</button>
+      </div>
+      <div class="engine-remote" hidden>
+        <div class="nb-hint">
+          This peer doesn't have the Nebula app yet. Install it from here &mdash;
+          the library streams to the peer over the encrypted peer network and
+          builds itself there.
+        </div>
+        <div class="nb-row">
+          <button class="btn btn-primary installappbutton">Install on this peer</button>
+          <button class="btn rebootpeerbutton" hidden>Reboot device</button>
+        </div>
+      </div>
+    </section>
 
-    <div class="installednetworks">
-      <h1>
-        <a class="addnetworkbutton">
-          <img class="roundbutton smol" src="../app/asset/app/add_icon.png">
-        </a>
-        Networks
-      </h1>
+    <section class="nb-panel installednetworks" hidden>
+      <div class="nb-row nb-row-between">
+        <div class="lbl">networks</div>
+        <button class="btn btn-primary addnetworkbutton">New network</button>
+      </div>
       <div class="foundnetworks"></div>
-    </div>
+    </section>
+  </main>
 
-    
+  <main class="nb-main networkpage" hidden>
+    <nav class="nb-tabs">
+      <button class="nb-tab selected" data-tab="svc">Service</button>
+      <button class="nb-tab" data-tab="lh">Lighthouses</button>
+      <button class="nb-tab tab-members" data-tab="mem">Members</button>
+      <button class="nb-tab" data-tab="adv">Advanced</button>
+    </nav>
+
+    <section class="nb-tabpane pane-svc">
+      <div class="nb-row nb-row-between">
+        <div>
+          <span class="lbl">owner</span> <span class="networkowner"></span>
+          <span class="joined-note" hidden>&mdash; you joined this network; members are managed on the owner's instance</span>
+        </div>
+        <button class="btn backbutton">&#8592; All networks</button>
+      </div>
+      <div class="nb-row">
+        <button class="btn btn-primary svc-runnow">Run now (supervised)</button>
+        <span class="nb-hint">Runs the tunnel as a child process of Newbound &mdash; no systemd, no sudo.
+          Auto-start at boot: list the network in the <span class="mono">start=</span> key of
+          <span class="mono">runtime/nebula/botd.properties</span>.</span>
+      </div>
+      <div class="nb-row nb-switchrow">
+        <label class="nb-switch"><input type="checkbox" class="svc-installed"><span class="nb-slider"></span> Installed as systemd service</label>
+        <label class="nb-switch"><input type="checkbox" class="svc-running"><span class="nb-slider"></span> Running (systemd)</label>
+        <button class="btn svc-restart">Restart</button>
+      </div>
+      <div class="nb-form">
+        <label><span class="lbl">this host is a lighthouse</span><input type="checkbox" class="f-amlighthouse"></label>
+        <label><span class="lbl">network interface</span><input type="text" class="f-host" placeholder="IP address to listen on"></label>
+        <label><span class="lbl">port</span><input type="number" class="f-port" placeholder="Port to listen on"></label>
+        <label><span class="lbl">private subnet</span><input type="text" class="f-subnet" placeholder="Example: 192.168.100.X/24"></label>
+        <label><span class="lbl">private ip address</span><input type="text" class="f-ipaddr" placeholder="This host's address on the overlay"></label>
+        <label><span class="lbl">groups</span><input type="text" class="f-groups" placeholder="Comma separated, no spaces"></label>
+      </div>
+    </section>
+
+    <section class="nb-tabpane pane-lh" hidden>
+      <div class="nb-row nb-row-between">
+        <div class="lbl">lighthouses</div>
+        <button class="btn btn-primary addlighthousebutton">Add lighthouse</button>
+      </div>
+      <div class="nb-hint">Publicly reachable hosts that members use to find each other. Changes apply when you save the configuration.</div>
+      <div class="lighthouselist"></div>
+    </section>
+
+    <section class="nb-tabpane pane-mem" hidden>
+      <div class="nb-row nb-row-between">
+        <div class="lbl">members</div>
+        <button class="btn btn-primary addmemberbutton">Add member</button>
+      </div>
+      <div class="nb-hint nopeers-hint" hidden>
+        No connected peers. Adding a member signs a certificate here and delivers
+        it to a connected peer &mdash; connect one in the
+        <a href="../peer/index.html">Peers app</a> first.
+      </div>
+      <div class="memberlist"></div>
+    </section>
+
+    <section class="nb-tabpane pane-adv" hidden>
+      <label class="nb-switch"><input type="checkbox" class="f-useyaml"><span class="nb-slider"></span> Override the other tabs with raw YAML</label>
+      <textarea class="f-yaml mono" rows="14" spellcheck="false"></textarea>
+    </section>
+
+    <footer class="nb-foot">
+      <button class="btn btn-primary saveconfigbutton">Save configuration</button>
+    </footer>
+  </main>
+
+  <div class="nb-modal" hidden>
+    <div class="nb-modal-card popmeup"></div>
   </div>
 </div>
-<div class='wrap networkpage' style='display:none;'>
-  <div class='titlebar network-titlebar'>
-    <img src='../app/asset/app/arrow-left.png' class='menuicon backbutton'>
-    Nebula / <span class="selectedpeername">local</span> / <span class="selectednetworkname"></span>
-  </div>
-  <div class='navbar network-navbar'>
-    <div class='navbar-tab network-tab selected' data-id='network-tab1'>Service</div>
-    <div class='navbar-tab network-tab' data-id='network-tab2'>Lighthouses</div>
-    <div class='navbar-tab network-tab' data-id='network-tab3'>Members</div>
-    <div class='navbar-tab network-tab' data-id='network-tab4'>Advanced</div>
-  </div>
-  <div class='main'>
-    <div class='tab-content network-tab1 selected' id='network-tab1'>
-      <h4 class='networkownerspan'></h4>
-      <div class='networkservicespan'></div>
-      <br>
-      <div class='networkrunningspan'></div>
-      <br>
-      <label class="plaincheckbox">
-        <input type='checkbox' id='lighthousecheckbox' class='lighthousecheckbox'>
-        <span>Lighthouse</span>
-      </label>
-      <br><br>
-      <div class='textinputlabel'>Network Interface</div>
-      <input type='text' class='textinput networkhost' placeholder='IP Address to listen on'>
-      <br><br>
-      <div class='textinputlabel'>Port</div>
-      <input type='number' class='textinput networkport' placeholder='Port to listen on'>
-      <br><br>
-      <div class='textinputlabel'>Private Subnet</div>
-      <input type='text' class='textinput networksubnet' placeholder='Example: 192.168.100.X/24'>
-      <br><br>
-      <div class='textinputlabel'>Private IP Address</div>
-      <input type='text' class='textinput networkipaddr' placeholder='IP Address on this Nebula network'>
-      <br><br>
-      <div class='textinputlabel'>Groups</div>
-      <input type='text' class='textinput networkgroups' placeholder='Comma separated, no spaces'>
-      <br><br>
-    </div>
-    <div class='tab-content network-tab2' id='network-tab2'>
-      <h1>
-        <img class="addlighthousebutton roundbutton smol" src="../app/asset/app/add_icon.png">
-        Remote Lighthouses
-      </h1>
-      <div class='selectednetworklighthouses'></div>
-    </div>
-    <div class='tab-content network-tab3' id='network-tab3'>
-      <h1>
-        <img class="addmemberbutton roundbutton smol" src="../app/asset/app/add_icon.png">
-        Remote Members
-      </h1>
-      <div class="selectednetworkmembers"></div>
-    </div>
-    <div class='tab-content network-tab4' id='network-tab4'>
-      <label class="plaincheckbox">
-        <input type='checkbox' id='yaml-checkbox' class='yaml-checkbox'>
-        <span>Override settings in other tabs</span>
-      </label>
-      <br><br>
-      <div class='textinputlabel'>RAW YAML</div>
-      <textarea class="config-yml textinput" type="text" rows= "10" cols="60" id="config-yml" style="min-width:100%;"></textarea>
-    </div>
-    <br>
-    <button class="saveconfigbutton coloredbutton">
-      Save configuration
-    </button>
-  </div>
-</div>
-<div class='popmeup card hideme wrap'></div>

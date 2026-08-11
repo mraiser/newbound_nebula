@@ -595,6 +595,12 @@ pub mod dev {
             ::flowlang::rustcmd::RustCmd::new("yypums1847731c7fap5").execute(d).expect("Rust command execution failed").get_string("a")
         }
 
+        pub fn activate_lib(lib: String) -> String {
+            let mut d = DataObject::new();
+            d.put_string("lib", &lib);
+            ::flowlang::rustcmd::RustCmd::new("lrgoyo19fe9049accu1").execute(d).expect("Rust command execution failed").get_string("a")
+        }
+
     }
     pub mod editcommand {
         use ::ndata::dataobject::DataObject;
@@ -733,6 +739,19 @@ pub mod dev {
         pub fn list() -> DataObject {
             let d = DataObject::new();
             ::flowlang::rustcmd::RustCmd::new("lovuhn189dc981ebch2f").execute(d).expect("Rust command execution failed").get_object("a")
+        }
+
+        pub fn update(lib: String) -> String {
+            let mut d = DataObject::new();
+            d.put_string("lib", &lib);
+            ::flowlang::rustcmd::RustCmd::new("hioqsq19fe7789bcaj1").execute(d).expect("Rust command execution failed").get_string("a")
+        }
+
+        pub fn remove(lib: String, delete_repository: bool) -> String {
+            let mut d = DataObject::new();
+            d.put_string("lib", &lib);
+            d.put_boolean("delete_repository", delete_repository);
+            ::flowlang::rustcmd::RustCmd::new("lumrkn19fe778ea1bu3").execute(d).expect("Rust command execution failed").get_string("a")
         }
 
     }
@@ -1350,17 +1369,28 @@ pub mod nebula {
         use ::ndata::databytes::DataBytes;
         use ::ndata::data::Data;
 
+        pub fn init() -> DataObject {
+            let d = DataObject::new();
+            ::flowlang::rustcmd::RustCmd::new("rvhgkr190c3084286y3de").execute(d).expect("Rust command execution failed").get_object("a")
+        }
+
+        pub fn start(servicename: String) -> DataObject {
+            let mut d = DataObject::new();
+            d.put_string("servicename", &servicename);
+            ::flowlang::rustcmd::RustCmd::new("hpsujs190c1e02ff6o143").execute(d).expect("Rust command execution failed").get_object("a")
+        }
+
         pub fn save_config(servicename: String, config: DataObject) -> DataObject {
             let mut d = DataObject::new();
             d.put_string("servicename", &servicename);
             d.put_object("config", config);
-            ::flowlang::rustcmd::RustCmd::new("ytxwzx19fe76e2c71r1").execute(d).expect("Rust command execution failed").get_object("a")
+            ::flowlang::rustcmd::RustCmd::new("pyzxrl19ff06c2457k1").execute(d).expect("Rust command execution failed").get_object("a")
         }
 
         pub fn build_config(servicename: String) -> String {
             let mut d = DataObject::new();
             d.put_string("servicename", &servicename);
-            ::flowlang::rustcmd::RustCmd::new("qxszhx19fe76e6afcj3").execute(d).expect("Rust command execution failed").get_string("a")
+            ::flowlang::rustcmd::RustCmd::new("igykzi19ff06c57eel3").execute(d).expect("Rust command execution failed").get_string("a")
         }
 
         pub fn create_network(name: String, subnet: String, port: String) -> DataObject {
@@ -1368,7 +1398,7 @@ pub mod nebula {
             d.put_string("name", &name);
             d.put_string("subnet", &subnet);
             d.put_string("port", &port);
-            ::flowlang::rustcmd::RustCmd::new("oxhyyu19fe76e6b01n5").execute(d).expect("Rust command execution failed").get_object("a")
+            ::flowlang::rustcmd::RustCmd::new("wksoog19ff06c5920t5").execute(d).expect("Rust command execution failed").get_object("a")
         }
 
         pub fn join_network(servicename: String, subnet: String, ipaddress: String, port: String, owner: String, ca_crt: String, host_crt: String, host_key: String, lighthouses: DataObject, groups: String) -> DataObject {
@@ -1383,7 +1413,7 @@ pub mod nebula {
             d.put_string("host_key", &host_key);
             d.put_object("lighthouses", lighthouses);
             d.put_string("groups", &groups);
-            ::flowlang::rustcmd::RustCmd::new("qhjshv19fe76e6b07o7").execute(d).expect("Rust command execution failed").get_object("a")
+            ::flowlang::rustcmd::RustCmd::new("mhmtmw19ff06c5a54m7").execute(d).expect("Rust command execution failed").get_object("a")
         }
 
         pub fn add_member(servicename: String, peer: String, ipaddress: String, groups: String) -> DataObject {
@@ -1392,62 +1422,62 @@ pub mod nebula {
             d.put_string("peer", &peer);
             d.put_string("ipaddress", &ipaddress);
             d.put_string("groups", &groups);
-            ::flowlang::rustcmd::RustCmd::new("zimlkq19fe76e6b0cn9").execute(d).expect("Rust command execution failed").get_object("a")
+            ::flowlang::rustcmd::RustCmd::new("jompkl19ff06c5b79t9").execute(d).expect("Rust command execution failed").get_object("a")
         }
 
         pub fn remove_member(servicename: String, peer: String) -> String {
             let mut d = DataObject::new();
             d.put_string("servicename", &servicename);
             d.put_string("peer", &peer);
-            ::flowlang::rustcmd::RustCmd::new("hlpkqi19fe76e6b10zb").execute(d).expect("Rust command execution failed").get_string("a")
+            ::flowlang::rustcmd::RustCmd::new("porjhm19ff06c5c9atb").execute(d).expect("Rust command execution failed").get_string("a")
         }
 
         pub fn members(servicename: String) -> DataObject {
             let mut d = DataObject::new();
             d.put_string("servicename", &servicename);
-            ::flowlang::rustcmd::RustCmd::new("hqkmoj19fe76e6b16wd").execute(d).expect("Rust command execution failed").get_object("a")
+            ::flowlang::rustcmd::RustCmd::new("tikzwu19ff06c5dbaxd").execute(d).expect("Rust command execution failed").get_object("a")
         }
 
         pub fn info() -> DataObject {
             let d = DataObject::new();
-            ::flowlang::rustcmd::RustCmd::new("wuggps19fe76e6b1avf").execute(d).expect("Rust command execution failed").get_object("a")
+            ::flowlang::rustcmd::RustCmd::new("llixku19ff06c5ee6kf").execute(d).expect("Rust command execution failed").get_object("a")
         }
 
         pub fn install_release(url: String, version: String) -> String {
             let mut d = DataObject::new();
             d.put_string("url", &url);
             d.put_string("version", &version);
-            ::flowlang::rustcmd::RustCmd::new("vwojjn19fe76e6b1fr11").execute(d).expect("Rust command execution failed").get_string("a")
+            ::flowlang::rustcmd::RustCmd::new("hnoyro19ff06c6009j11").execute(d).expect("Rust command execution failed").get_string("a")
         }
 
         pub fn install_service(servicename: String) -> String {
             let mut d = DataObject::new();
             d.put_string("servicename", &servicename);
-            ::flowlang::rustcmd::RustCmd::new("qyokmt19fe76e6b24j13").execute(d).expect("Rust command execution failed").get_string("a")
+            ::flowlang::rustcmd::RustCmd::new("vopmor19ff06c652aj13").execute(d).expect("Rust command execution failed").get_string("a")
         }
 
         pub fn uninstall_service(servicename: String) -> String {
             let mut d = DataObject::new();
             d.put_string("servicename", &servicename);
-            ::flowlang::rustcmd::RustCmd::new("zjlhwx19fe76e6b29o15").execute(d).expect("Rust command execution failed").get_string("a")
+            ::flowlang::rustcmd::RustCmd::new("hlnukj19ff06c6a9fg15").execute(d).expect("Rust command execution failed").get_string("a")
         }
 
         pub fn start_service(servicename: String) -> String {
             let mut d = DataObject::new();
             d.put_string("servicename", &servicename);
-            ::flowlang::rustcmd::RustCmd::new("zwpkoo19fe76e6b2ei17").execute(d).expect("Rust command execution failed").get_string("a")
+            ::flowlang::rustcmd::RustCmd::new("ngvkoz19ff06c6aa4i17").execute(d).expect("Rust command execution failed").get_string("a")
         }
 
         pub fn stop_service(servicename: String) -> String {
             let mut d = DataObject::new();
             d.put_string("servicename", &servicename);
-            ::flowlang::rustcmd::RustCmd::new("gorqly19fe76e6b33i19").execute(d).expect("Rust command execution failed").get_string("a")
+            ::flowlang::rustcmd::RustCmd::new("zsogsu19ff06c6aa8x19").execute(d).expect("Rust command execution failed").get_string("a")
         }
 
         pub fn restart_service(servicename: String) -> String {
             let mut d = DataObject::new();
             d.put_string("servicename", &servicename);
-            ::flowlang::rustcmd::RustCmd::new("uhtkqq19fe76e6b38t1b").execute(d).expect("Rust command execution failed").get_string("a")
+            ::flowlang::rustcmd::RustCmd::new("hksqzt19ff06c6aadg1b").execute(d).expect("Rust command execution failed").get_string("a")
         }
 
     }
@@ -2197,6 +2227,10 @@ impl old_dev_dev {
     pub fn rebuild_lib(&self, lib: String) -> String {
         self::dev::dev::rebuild_lib(lib)
     }
+    #[deprecated(note = "use api::dev::dev::activate_lib instead")]
+    pub fn activate_lib(&self, lib: String) -> String {
+        self::dev::dev::activate_lib(lib)
+    }
 }
 impl old_dev_editcommand {
     #[deprecated(note = "use api::dev::editcommand::compile_command instead")]
@@ -2258,6 +2292,14 @@ impl old_dev_github {
     #[deprecated(note = "use api::dev::github::list instead")]
     pub fn list(&self) -> DataObject {
         self::dev::github::list()
+    }
+    #[deprecated(note = "use api::dev::github::update instead")]
+    pub fn update(&self, lib: String) -> String {
+        self::dev::github::update(lib)
+    }
+    #[deprecated(note = "use api::dev::github::remove instead")]
+    pub fn remove(&self, lib: String, delete_repository: bool) -> String {
+        self::dev::github::remove(lib, delete_repository)
     }
 }
 impl old_dev_libsettings {
@@ -2451,6 +2493,14 @@ impl old_dev_code {
     }
 }
 impl old_nebula_nebula {
+    #[deprecated(note = "use api::nebula::nebula::init instead")]
+    pub fn init(&self) -> DataObject {
+        self::nebula::nebula::init()
+    }
+    #[deprecated(note = "use api::nebula::nebula::start instead")]
+    pub fn start(&self, servicename: String) -> DataObject {
+        self::nebula::nebula::start(servicename)
+    }
     #[deprecated(note = "use api::nebula::nebula::save_config instead")]
     pub fn save_config(&self, servicename: String, config: DataObject) -> DataObject {
         self::nebula::nebula::save_config(servicename, config)

@@ -1,1 +1,0 @@
-"NO".to_string()
