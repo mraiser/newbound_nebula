@@ -1,1 +1,0 @@
-{"data":{"attachmentkeynames":["rs"],"desc":"sudo systemctl restart <network>. Admin-only.","import":"use ndata::dataarray::DataArray;\nuse flowlang::flowlang::system::system_call::system_call;\n","params":[{"name":"servicename","type":"String"}],"returntype":"String","type":"rust"},"id":"uhtkqq19fe76e6b38t1b","readers":[],"time":1786294201146,"username":"system","writers":[]}

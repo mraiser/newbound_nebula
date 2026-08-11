@@ -1,0 +1,1 @@
+{"data":{"attachmentkeynames":["rs"],"cmd":"build_config","ctl":"nebula","desc":"","import":"use flowlang::datastore::DataStore;\nuse std::fs;\n","lib":"nebula","params":[{"name":"servicename","type":"String"}],"returntype":"String","type":"rust"},"id":"ynjosj184fc757ea6g8c","readers":[],"time":1673122794021,"username":"system","writers":[]}

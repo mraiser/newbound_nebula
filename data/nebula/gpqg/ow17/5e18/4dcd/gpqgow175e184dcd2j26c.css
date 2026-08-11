@@ -1,1 +1,5 @@
-/* styles live in the nebula control css (injected globally) */
+.closelhbutton {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}

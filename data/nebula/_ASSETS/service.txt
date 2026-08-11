@@ -1,11 +1,10 @@
 [Unit]
-Description=Nebula overlay network: SERVICENAME
-After=network-online.target
-Wants=network-online.target
+Description=SERVICENAME
 
 [Service]
-ExecStart=ROOTDIR/bin/nebula -config ROOTDIR/networks/SERVICENAME/config.yml
-Restart=on-failure
+ExecStart=bash -c 'ROOTDIR/bin/nebula -config ROOTDIR/networks/SERVICENAME/config.yml &'
+Type=forking
+RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target

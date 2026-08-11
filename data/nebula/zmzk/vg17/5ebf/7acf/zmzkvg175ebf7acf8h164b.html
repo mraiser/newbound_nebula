@@ -1,16 +1,18 @@
-<div class="nbdlg">
-  <div class="nbdlg-head">
-    <span class="nbdlg-title">New network</span>
-    <button class="nbdlg-x closenwbutton" title="Close">&#10005;</button>
-  </div>
-  <div class="nbdlg-body">
-    <label><span class="lbl">name</span><input type="text" id="nwname" placeholder="Network name"></label>
-    <label><span class="lbl">subnet prefix</span><input type="text" id="nwsubnet" placeholder="Example: 192.168.100.X/24"></label>
-    <label><span class="lbl">port</span><input type="number" id="nwport" placeholder="UDP port"></label>
-    <div class="nbdlg-err" hidden></div>
-  </div>
-  <div class="nbdlg-foot">
-    <button class="btn cancelbutton">Cancel</button>
-    <button class="btn btn-primary createnewnetworkbutton">Create network</button>
-  </div>
+<div class="padme card-header dialog-header">
+  <span class="title">Add Network</span>
+</div>
+<div class='padme'>
+  <div class='textinputlabel'>Name</div>
+  <input type='text' class='textinput' placeholder='Network Name' id="nwname">
+  <br><br>
+  <div class='textinputlabel'>Subnet Prefix</div>
+  <input type='text' class='textinput' placeholder='Network Subnet' id="nwsubnet">
+  <br><br>
+  <div class='textinputlabel'>Port</div>
+  <input type='number' class='textinput' placeholder='Port Number' id="nwport">
+  <br><br>
+  <button class="createnewnetworkbutton coloredbutton">OK</button>
+
+  <img src="../app/asset/app/close-white.png"  class="closenwbutton roundbutton-small">
+  
 </div>

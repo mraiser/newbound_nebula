@@ -1,44 +1,56 @@
-var me = this;
+var me = this; 
 var ME = $('#'+me.UUID)[0];
 
 me.ready = function(){
   if (!ME.DATA.value) ME.DATA.value = {};
-  var v = ME.DATA.value;
-  $(ME).find('#lhprivateip').val(v.private_ip || '');
-  $(ME).find('#lhpublicip').val(v.public_ip || '');
-  $(ME).find('#lhport').val(v.port || '');
-
+  else {
+    $(ME).find('#lhprivateip').val(ME.DATA.value.private_ip).parent().addClass('is-dirty');
+    $(ME).find('#lhpublicip').val(ME.DATA.value.public_ip).parent().addClass('is-dirty');
+    $(ME).find('#lhport').val(ME.DATA.value.port).parent().addClass('is-dirty');
+  }
+  
   var el = $(ME).find('.lighthousepeerselector');
-  installControl(el[0], 'peer', 'peer_select', function(){}, {
-    local: false,
-    connectedonly: true,
-    value: v.peer,
-    ready: function(){ v.peer = el.find('select').val(); },
-    cb: function(val){ v.peer = val; }
-  });
+  var d = {
+    "local": false,
+    "connectedonly": true,
+    "value": ME.DATA.value.peer,
+    "ready": function(val){
+      ME.DATA.value.peer = el.find('select').val();
+    },
+    "cb": function(val){
+      ME.DATA.value.peer = val;
+    }
+  }
+  installControl(el[0], 'peer', 'peer_select', function(api){}, d);
 };
 
-function err(msg){
-  var el = $(ME).find('.nbdlg-err');
-  if (!msg) { el.attr('hidden', true); return; }
-  el.removeAttr('hidden').text(msg);
+me.validate = function(){
+  var ok = false;
+  var msg = "unknown error";
+  if (!ME.DATA.value.private_ip) msg = "Private IP is required";
+  else if (!ME.DATA.value.public_ip) msg = "Public IP is required";
+  else if (!ME.DATA.value.port) msg = "Port is required";
+  else ok = true;
+  if (!ok) alert(msg);
+  return ok;
 }
 
-$(ME).find('.savelhbutton').click(function(){
-  var v = {
-    peer: ME.DATA.value.peer,
-    private_ip: ($(ME).find('#lhprivateip').val() || '').trim(),
-    public_ip: ($(ME).find('#lhpublicip').val() || '').trim(),
-    port: ('' + $(ME).find('#lhport').val()).trim()
-  };
-  if (!v.peer) return err('Pick the peer that acts as the lighthouse.');
-  if (!v.private_ip) return err('The private (overlay) IP is required.');
-  if (!v.public_ip) return err('The public IP is required — a lighthouse must be reachable from the internet.');
-  if (!v.port || isNaN(Number(v.port))) return err('The lighthouse’s UDP port is required.');
-  err(null);
-  if (ME.DATA.save) ME.DATA.save(v);
+$(ME).find('#lhprivateip').change(function(e){
+  ME.DATA.value.private_ip = $(this).val();
 });
 
-$(ME).find('.closelhbutton, .cancellhbutton').click(function(){
+$(ME).find('#lhpublicip').change(function(e){
+  ME.DATA.value.public_ip = $(this).val();
+});
+
+$(ME).find('#lhport').change(function(e){
+  ME.DATA.value.port = $(this).val();
+});
+
+$(ME).find('.closelhbutton').click(function(e){
   if (ME.DATA.close) ME.DATA.close();
+});
+
+$(ME).find('.savelhbutton').click(function(e){
+  if (me.validate()) ME.DATA.save(ME.DATA.value);
 });

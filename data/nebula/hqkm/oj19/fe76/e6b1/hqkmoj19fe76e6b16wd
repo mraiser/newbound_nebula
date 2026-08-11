@@ -1,1 +1,0 @@
-{"data":{"attachmentkeynames":["rs"],"desc":"List a network's members from networks/<name>/members/*/info.json, keyed by peer id. Read-only.","import":"use flowlang::datastore::DataStore;\n","params":[{"name":"servicename","type":"String"}],"returntype":"JSONObject","type":"rust"},"id":"hqkmoj19fe76e6b16wd","readers":[],"time":1786294201111,"username":"system","writers":[]}
