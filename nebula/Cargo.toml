@@ -19,5 +19,4 @@ javascript_runtime = ["flowlang/javascript_runtime"]
 reload = []
 default = []
 
-# Self-contained: not a member of the host checkout's cargo workspace
 [workspace]

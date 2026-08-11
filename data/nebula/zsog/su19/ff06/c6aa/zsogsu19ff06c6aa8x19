@@ -1,1 +1,0 @@
-{"data":{"attachmentkeynames":["rs"],"desc":"sudo systemctl stop <network>. Admin-only.","import":"use ndata::dataarray::DataArray;\nuse flowlang::flowlang::system::system_call::system_call;\n","params":[{"name":"servicename","type":"String"}],"returntype":"String","type":"rust"},"id":"zsogsu19ff06c6aa8x19","readers":[],"time":1786445064874,"username":"system","writers":[]}
