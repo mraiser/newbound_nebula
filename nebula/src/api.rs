@@ -4152,6 +4152,11 @@ pub mod scratch {
             ::flowlang::rustcmd::RustCmd::new("plhtnw1a02081b335w8").execute(d).expect("Rust command execution failed").get_string("a")
         }
 
+        pub fn eval_nxgwnj1a03347ad15m21() -> DataObject {
+            let d = DataObject::new();
+            ::flowlang::rustcmd::RustCmd::new("ppimji1a03347ad16q23").execute(d).expect("Rust command execution failed").get_object("a")
+        }
+
     }
 }
 
@@ -7133,6 +7138,10 @@ impl old_scratch_scratch {
     #[deprecated(note = "use api::scratch::scratch::testing instead")]
     pub fn testing(&self) -> String {
         self::scratch::scratch::testing()
+    }
+    #[deprecated(note = "use api::scratch::scratch::eval_nxgwnj1a03347ad15m21 instead")]
+    pub fn eval_nxgwnj1a03347ad15m21(&self) -> DataObject {
+        self::scratch::scratch::eval_nxgwnj1a03347ad15m21()
     }
 }
 impl old_security_security {
