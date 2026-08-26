@@ -12,3 +12,6 @@ runtime/nebula/botd.properties
 .DS_Store
 .idea/
 out/
+
+# builder-written lockfile for the generated crate
+nebula/Cargo.lock

@@ -1,0 +1,29 @@
+[
+  {
+    "claim": "The peer mesh replaces the lighthouse's discovery job: endpoints reports a host's candidates plus the platform-OBSERVED address of any connected peer (recorded on user records by the UDP welcome path), the UI's syncMesh pushes the merged map to every member via update_hosts, and save_config renders it into static_host_map with punchy punch/respond. Verified end-to-end 2026-08-26: two instances in separate netns joined over the peer channel and exchanged overlay pings on nebula 1.9.5 with zero lighthouses configured.",
+    "tags": "mesh,lighthouse,design",
+    "source": {
+      "lib": "nebula",
+      "ctl": "nebula",
+      "facet": "js",
+      "hash": "184e9d3c519caa62"
+    },
+    "time": 1787750621321
+  },
+  {
+    "claim": "Supervised tunnel contract: start tracks each Child in the NEBULA_CHILDREN static (declared in start.rs's import block, shared as crate::nebula::nebula::start::NEBULA_CHILDREN), keeps a bounded output tail in globals nebulaservices.<name>.log, and try_waits after a 700ms grace so instant deaths (bad config, no tun) return err with the process output instead of a false OK. stop kills via the static; info merges this state into running/supervised per network. State lives in the server process only - a separate newbound mcp process sees its own empty globals.",
+    "tags": "supervised,process,state",
+    "source": {
+      "lib": "nebula",
+      "ctl": "nebula",
+      "facet": "js",
+      "hash": "184e9d3c519caa62"
+    },
+    "time": 1787750621387
+  },
+  {
+    "claim": "flowlang system_call exposes no exit code (out/err/status only, status err just means spawn failed), so the systemd service commands run systemctl via std::process::Command::output and read status.success(); string-returning commands signal failure to the UI by the ERROR: prefix, which outcome() in the js facet recognizes. Never report tool stderr as success - systemctl enable writes to stderr even when it works.",
+    "tags": "system_call,exit-code,services",
+    "time": 1787750621443
+  }
+]

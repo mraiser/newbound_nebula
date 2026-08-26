@@ -101,3 +101,16 @@
 .nbdlg-body input { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; color: var(--text); padding: 7px 9px; }
 .nbdlg-err { color: var(--danger); font-size: 13px; }
 .nbdlg-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
+
+/* supervised tunnel row */
+.nb-runrow { gap: 12px; }
+.tunnelstate { display: inline-flex; align-items: center; gap: 8px; color: var(--text-dim); }
+.tunnelstate .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-faint); }
+.tunnelstate .dot.on { background: var(--good); }
+.btn.svc-stopnow { color: var(--danger); }
+
+/* install-by-URL row */
+.engine-byurl .f-releaseurl { flex: 1; min-width: 260px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; color: var(--text); padding: 7px 9px; }
+
+/* a switch inside the config form lays out in a row, not the label column */
+.nb-form label.nb-switch { flex-direction: row; align-items: center; }

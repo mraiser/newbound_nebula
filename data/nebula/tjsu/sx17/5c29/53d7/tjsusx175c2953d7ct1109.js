@@ -82,11 +82,17 @@ function refresh(){
       return;
     }
     var d = result.data;
-    if (d.tag_name == 'Not Installed'){
+    S.systemd = !!d.systemd;
+    var noengine = d.tag_name == 'Not Installed';
+    if (noengine){
       $(ME).find('.nebulaversion').text('not installed — fetch a release below');
     } else {
       $(ME).find('.nebulaversion').text(d.tag_name + ' (' + d.binary_name + ')');
     }
+    // no engine, no certificates: gate network creation until it is installed
+    $(ME).find('.addnetworkbutton').prop('disabled', noengine);
+    if (noengine) $(ME).find('.noengine-hint').removeAttr('hidden');
+    else $(ME).find('.noengine-hint').attr('hidden', true);
     renderNetworks(d.networks || []);
     $(ME).find('.installednetworks').removeAttr('hidden');
   }, S.peer);
@@ -116,31 +122,61 @@ function renderNetworks(list){
 }
 
 // ---- engine: release check + install ----
+// Release listing prefers the server (no browser CORS or connectivity
+// assumptions); falls back to fetching from the browser, then to a URL box.
+function offerReleases(list){
+  S.releases = {};
+  for (var i in list) S.releases[list[i].id] = list[i];
+  installControl($(ME).find('.updatemsg')[0], 'app', 'select', function(){
+    selectVersion(list[0].id);
+  }, { list: list, label: 'Version', cb: selectVersion });
+}
+
 $(ME).find('.checkupdatebutton').click(function(){
   var msg = $(ME).find('.updatemsg');
   $(ME).find('.engine-install').removeAttr('hidden');
+  $(ME).find('.engine-byurl').removeAttr('hidden');
   msg.text('checking releases…');
   busy('.checkupdatebutton', true);
-  var ctrl = new AbortController();
-  var timer = setTimeout(function(){ ctrl.abort(); }, 10000);
-  fetch('https://api.github.com/repos/slackhq/nebula/releases', { signal: ctrl.signal })
-    .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-    .then(function(list){
-      clearTimeout(timer);
+  send_releases(function(result){
+    var o = outcome(result);
+    if (o.ok && result.data.list && result.data.list.length){
       busy('.checkupdatebutton', false);
       msg.text('');
-      S.releases = {};
-      for (var i in list) S.releases[list[i].id] = list[i];
-      installControl($(ME).find('.updatemsg')[0], 'app', 'select', function(){
-        selectVersion(list[0].id);
-      }, { list: list, label: 'Version', cb: selectVersion });
-    })
-    .catch(function(e){
-      clearTimeout(timer);
-      busy('.checkupdatebutton', false);
-      msg.text('');
-      status('Could not reach api.github.com (' + e.message + '). If this instance is offline, download a release elsewhere and install it by URL on a reachable mirror.', 'err');
-    });
+      var list = [];
+      for (var i in result.data.list){
+        var r = result.data.list[i];
+        if (r.prerelease) continue;
+        list.push({ id: r.tag_name, name: r.tag_name, assets: r.assets });
+      }
+      offerReleases(list);
+      return;
+    }
+    // the instance could not reach GitHub — try from this browser instead
+    var ctrl = new AbortController();
+    var timer = setTimeout(function(){ ctrl.abort(); }, 10000);
+    fetch('https://api.github.com/repos/slackhq/nebula/releases', { signal: ctrl.signal })
+      .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function(raw){
+        clearTimeout(timer);
+        busy('.checkupdatebutton', false);
+        msg.text('');
+        var list = [];
+        for (var i in raw){
+          if (raw[i].prerelease) continue;
+          var assets = [];
+          for (var j in raw[i].assets) assets.push({ name: raw[i].assets[j].name, url: raw[i].assets[j].browser_download_url });
+          list.push({ id: '' + raw[i].id, name: raw[i].tag_name, assets: assets });
+        }
+        offerReleases(list);
+      })
+      .catch(function(e){
+        clearTimeout(timer);
+        busy('.checkupdatebutton', false);
+        msg.text('');
+        status('Could not reach api.github.com from this instance or this browser (' + e.message + '). Paste a release tarball URL below instead.', 'err');
+      });
+  }, S.peer);
 });
 
 function selectVersion(id){
@@ -149,25 +185,37 @@ function selectVersion(id){
   for (var i in r.assets){
     var a = r.assets[i];
     var m = a.name.match(/^nebula-(.+?)\.(tar\.gz|zip)$/);
-    if (m) binaries.push({ name: m[1], id: a.browser_download_url });
+    if (m) binaries.push({ name: m[1], id: a.url });
   }
   installControl($(ME).find('.downloadselect')[0], 'app', 'select', function(){
     $(ME).find('.installupdatebutton').removeAttr('hidden');
   }, { list: binaries, label: 'Platform' });
 }
 
-$(ME).find('.installupdatebutton').click(function(){
-  var url = $(ME).find('.downloadselect').find('select').val();
-  var vel = $(ME).find('.updatemsg').find('select')[0];
-  var version = vel.options[vel.selectedIndex].text;
+function doInstall(url, version){
   busy('.installupdatebutton', true);
+  busy('.installurlbutton', true);
   status('Downloading ' + version + ' on ' + peerName(S.peer) + '…', 'busy');
   send_install_release(url, version, function(result){
     busy('.installupdatebutton', false);
+    busy('.installurlbutton', false);
     var o = outcome(result);
     status(o.ok ? 'Installed ' + version : o.msg, o.ok ? 'ok' : 'err');
     refresh();
   }, S.peer);
+}
+
+$(ME).find('.installupdatebutton').click(function(){
+  var url = $(ME).find('.downloadselect').find('select').val();
+  var vel = $(ME).find('.updatemsg').find('select')[0];
+  doInstall(url, vel.options[vel.selectedIndex].text);
+});
+
+$(ME).find('.installurlbutton').click(function(){
+  var url = ($(ME).find('.f-releaseurl').val() || '').trim();
+  if (!url) return status('Paste the URL of a nebula release tarball first.', 'err');
+  var m = url.match(/nebula-(.+?)\.(tar\.gz|zip)$/);
+  doInstall(url, m ? ('custom (' + m[1] + ')') : 'custom URL');
 });
 
 // ---- P2P install: stream the library to a peer that lacks the app ----
@@ -271,8 +319,20 @@ function openNetwork(name){
 
 function renderServicePane(n){
   var c = n.config;
+  var st = $(ME).find('.tunnelstate');
+  st.find('.dot').toggleClass('on', !!n.running);
+  st.find('.tunnelstate-msg').text(
+    n.supervised ? 'tunnel running (supervised)'
+    : n.service_running ? 'tunnel running (systemd)'
+    : 'tunnel not running');
+  if (n.supervised) { $(ME).find('.svc-runnow').attr('hidden', true); $(ME).find('.svc-stopnow').removeAttr('hidden'); }
+  else { $(ME).find('.svc-runnow').removeAttr('hidden'); $(ME).find('.svc-stopnow').attr('hidden', true); }
+  $(ME).find('.svc-boot').prop('checked', !!n.boot);
+  // systemd controls only where systemd exists — elsewhere they can only fail
+  if (S.systemd) $(ME).find('.systemd-only').removeAttr('hidden');
+  else $(ME).find('.systemd-only').attr('hidden', true);
   $(ME).find('.svc-installed').prop('checked', !!n.service);
-  $(ME).find('.svc-running').prop('checked', !!n.running);
+  $(ME).find('.svc-running').prop('checked', !!n.service_running);
   $(ME).find('.f-amlighthouse').prop('checked', !!c.am_lighthouse);
   $(ME).find('.f-host').val(c.host || '');
   $(ME).find('.f-port').val(c.port || '');
@@ -291,8 +351,7 @@ function refreshNetworkPage(){
       if (name && S.networks[name]){
         var n = S.networks[name];
         S.selected = name;
-        $(ME).find('.svc-installed').prop('checked', !!n.service);
-        $(ME).find('.svc-running').prop('checked', !!n.running);
+        renderServicePane(n);
       }
     }
   }, S.peer);
@@ -322,15 +381,35 @@ $(ME).find('.svc-running').change(function(){
 });
 $(ME).find('.svc-restart').click(function(){ serviceAction(send_restart_service, 'Restarting'); });
 
-// The v51 service model: run the tunnel as a supervised child process.
+// The supervised service model: the tunnel is a child process of Newbound.
+// start answers honestly (err with the process output when nebula dies at
+// launch), stop kills the tracked child, and info reports the real state.
 $(ME).find('.svc-runnow').click(function(){
   busy('.svc-runnow', true);
-  status('Starting ' + S.selected + ' as a supervised process…', 'busy');
+  status('Starting ' + S.selected + '…', 'busy');
   send_start(S.selected, function(result){
     busy('.svc-runnow', false);
     var o = outcome(result);
-    status(o.ok ? S.selected + ' launched. Output goes to the Newbound log; info does not yet report supervised-process state.' : o.msg,
-           o.ok ? 'ok' : 'err');
+    status(o.ok ? ((result.data && result.data.msg) || (S.selected + ' is running')) : o.msg, o.ok ? 'ok' : 'err');
+    refreshNetworkPage();
+  }, S.peer);
+});
+$(ME).find('.svc-stopnow').click(function(){
+  busy('.svc-stopnow', true);
+  status('Stopping ' + S.selected + '…', 'busy');
+  send_stop(S.selected, function(result){
+    busy('.svc-stopnow', false);
+    var o = outcome(result);
+    status(o.ok ? S.selected + ' stopped' : o.msg, o.ok ? 'ok' : 'err');
+    refreshNetworkPage();
+  }, S.peer);
+});
+$(ME).find('.svc-boot').change(function(){
+  var on = $(this).prop('checked');
+  send_set_boot(S.selected, on, function(result){
+    var o = outcome(result);
+    status(o.ok ? (S.selected + (on ? ' will start at boot' : ' will not start at boot')) : o.msg, o.ok ? 'ok' : 'err');
+    refreshNetworkPage();
   }, S.peer);
 });
 
@@ -344,6 +423,7 @@ $(ME).find('.saveconfigbutton').click(function(){
     groups: $(ME).find('.f-groups').val(),
     am_lighthouse: $(ME).find('.f-amlighthouse').prop('checked'),
     lighthouses: S.lighthouses,
+    hosts: (S.networks[S.selected].config.hosts || {}),
     use_yaml: $(ME).find('.f-useyaml').prop('checked')
   };
   if (d.use_yaml) d.yaml = $(ME).find('.f-yaml').val();
@@ -355,7 +435,7 @@ $(ME).find('.saveconfigbutton').click(function(){
       S.networks[S.selected].config = result.data;
       $(ME).find('.f-yaml').val(result.data.yaml || '');
     }
-    status(o.ok ? 'Configuration saved. Restart the service to apply it.' : o.msg, o.ok ? 'ok' : 'err');
+    status(o.ok ? 'Configuration saved. Restart the tunnel or service to apply it.' : o.msg, o.ok ? 'ok' : 'err');
   }, S.peer);
 });
 
@@ -463,6 +543,93 @@ function proposeIP(){
   return subnet.replace('X', '2');
 }
 
+// ---- the peer mesh: Newbound is the lighthouse ----
+// A nebula lighthouse does two jobs: it tells members each other's public
+// endpoints, and it triggers hole punching. The encrypted Newbound peer
+// network already reaches every member, so it can do the first job itself:
+// gather each member's local candidates + the addresses the peer layer
+// OBSERVED for their connections, then push the merged map to everyone.
+// save_config renders it into static_host_map with punchy on — members
+// punch through to each other directly, no publicly reachable host needed.
+function syncMesh(quiet){
+  var name = S.selected;
+  var cfg = S.networks[name].config;
+  var port = cfg.port;
+  var ownerUuid = S.peer ? S.peer : S.mypeerid;
+  var ids = Object.keys(S.members);
+  if (!ids.length){ if (!quiet) status('No members yet — the mesh has nothing to sync.', 'ok'); return; }
+  busy('.syncmeshbutton', true);
+  if (!quiet) status('Syncing the mesh: gathering addresses over the peer network…', 'busy');
+
+  var hosts = {};          // overlay ip -> [ 'ip:port', ... ]
+  var ownerVotes = {};     // what members observe as the owner's public face
+  var failures = [];
+  var ownerIp = (cfg.ip_address || '').split('/')[0];
+  var pending = 2 * ids.length + 1;
+
+  function addHost(ip, eps){
+    if (!hosts[ip]) hosts[ip] = [];
+    for (var i in eps) if (eps[i] && hosts[ip].indexOf(eps[i]) == -1) hosts[ip].push(eps[i]);
+  }
+
+  function gathered(){
+    if (--pending > 0) return;
+    for (var a in ownerVotes){ addHost(ownerIp, [a + ':' + port]); }
+    // push the same map to every member, then apply it locally
+    var pending2 = ids.length + 1;
+    function pushed(){
+      if (--pending2 > 0) return;
+      busy('.syncmeshbutton', false);
+      if (failures.length) status('Mesh synced with problems: ' + failures.join('; '), 'err');
+      else if (!quiet) status('Mesh synced across ' + (ids.length + 1) + ' hosts — members reach each other without a public lighthouse.', 'ok');
+      refreshNetworkPage();
+    }
+    for (var k in ids){
+      (function(id){
+        send_update_hosts(name, hosts, function(result){
+          var o = outcome(result);
+          if (!o.ok) failures.push(peerName(id) + ': ' + o.msg);
+          pushed();
+        }, id);
+      })(ids[k]);
+    }
+    send_update_hosts(name, hosts, function(result){
+      var o = outcome(result);
+      if (!o.ok) failures.push('this instance: ' + o.msg);
+      pushed();
+    }, S.peer);
+  }
+
+  // the owner's own local candidates
+  send_endpoints(name, '', function(result){
+    var o = outcome(result);
+    if (o.ok && result.data.endpoints) addHost(ownerIp, result.data.endpoints);
+    gathered();
+  }, S.peer);
+
+  for (var k in ids){
+    (function(id){
+      var mip = (S.members[id].ip_address || '').split('/')[0];
+      // what the owner's peer layer observed for this member
+      send_endpoints(name, id, function(result){
+        var o = outcome(result);
+        if (o.ok && result.data.observed) addHost(mip, [result.data.observed + ':' + port]);
+        gathered();
+      }, S.peer);
+      // the member's own local candidates + its view of the owner
+      send_endpoints(name, ownerUuid, function(result){
+        var o = outcome(result);
+        if (o.ok){
+          if (result.data.endpoints) addHost(mip, result.data.endpoints);
+          if (result.data.observed) ownerVotes[result.data.observed] = 1;
+        } else failures.push(peerName(id) + ': ' + o.msg);
+        gathered();
+      }, id);
+    })(ids[k]);
+  }
+}
+$(ME).find('.syncmeshbutton').click(function(){ syncMesh(false); });
+
 $(ME).find('.addmemberbutton').click(function(){
   openModal('member', {
     value: { ip_address: proposeIP(), groups: '', peer: null },
@@ -485,10 +652,15 @@ $(ME).find('.addmemberbutton').click(function(){
                           b.ca_crt, b.host_crt, b.host_key, S.lighthouses, data.groups || '',
         function(result2){
           var o2 = outcome(result2);
-          status(o2.ok ? peerName(target) + ' joined ' + servicename + '. Start its service from the peer selector above.'
+          status(o2.ok ? peerName(target) + ' joined ' + servicename + ' — syncing the mesh so everyone can reach it…'
                        : 'Signed, but the peer could not join: ' + o2.msg,
                  o2.ok ? 'ok' : 'err');
-          loadMembers();
+          send_members(servicename, function(result3){
+            var o3 = outcome(result3);
+            S.members = o3.ok ? (result3.data || {}) : {};
+            renderMembers();
+            if (o2.ok) syncMesh(true);
+          }, S.peer);
         }, target);
       }, S.peer);
     }
