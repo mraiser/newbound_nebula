@@ -1,3 +1,16 @@
+// Run one command, verdict from the exit status; stderr only matters on failure.
+fn run(args: &[&str]) -> Result<String, String> {
+  let out = Command::new(args[0]).args(&args[1..]).output();
+  match out {
+    Err(e) => Err(format!("could not run {}: {}", args[0], e)),
+    Ok(o) => {
+      let text = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
+      if o.status.success() { Ok(text) } else { Err(text.trim().to_string()) }
+    }
+  }
+}
+
+if !Path::new("/run/systemd/system").exists() { return "ERROR: this host does not run systemd - use the supervised Run control instead.".to_string(); }
 let store = DataStore::new().root;
 let nbdir = store.parent().unwrap().to_owned();
 let root = nbdir.join("runtime").join("nebula");
@@ -8,32 +21,10 @@ let unit = unit.replace("ROOTDIR", &root.canonicalize().unwrap().into_os_string(
 
 let tmp = root.join("networks").join(&servicename).join(&(servicename.to_owned()+".service"));
 std::fs::write(&tmp, &unit).unwrap();
+let tmp = tmp.into_os_string().into_string().unwrap();
+let dest = "/etc/systemd/system/".to_string()+&servicename+".service";
 
-let mut s = "".to_string();
-
-let mut sa = DataArray::new();
-sa.push_string("sudo");
-sa.push_string("mv");
-sa.push_string(&tmp.into_os_string().into_string().unwrap());
-sa.push_string(&("/etc/systemd/system/".to_string()+&servicename+".service"));
-let res = system_call(sa);
-s = s + &res.get_string("out") + &res.get_string("err");
-
-let mut sa = DataArray::new();
-sa.push_string("sudo");
-sa.push_string("systemctl");
-sa.push_string("daemon-reload");
-let res = system_call(sa);
-s = s + &res.get_string("out") + &res.get_string("err");
-
-let mut sa = DataArray::new();
-sa.push_string("sudo");
-sa.push_string("systemctl");
-sa.push_string("enable");
-sa.push_string(&servicename);
-let res = system_call(sa);
-s = s + &res.get_string("out") + &res.get_string("err");
-
-if s == "" { s = "OK".to_string(); }
-
-s
+if let Err(e) = run(&["sudo", "mv", &tmp, &dest]) { return format!("ERROR: could not install the unit file: {}", e); }
+if let Err(e) = run(&["sudo", "systemctl", "daemon-reload"]) { return format!("ERROR: daemon-reload failed: {}", e); }
+if let Err(e) = run(&["sudo", "systemctl", "enable", &servicename]) { return format!("ERROR: enable failed: {}", e); }
+"OK".to_string()

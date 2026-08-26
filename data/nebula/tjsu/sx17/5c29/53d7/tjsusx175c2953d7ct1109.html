@@ -6,7 +6,7 @@
     <span class="nb-title">Nebula</span>
     <span class="nb-crumb" hidden></span>
     <span class="nb-spacer"></span>
-    <span class="nb-peerbox"><span class="lbl">peer</span><span class="whichpeer"></span></span>
+    <span class="nb-peerbox"><span class="whichpeer"></span></span>
   </header>
 
   <div class="nb-status" hidden>
@@ -27,6 +27,10 @@
         <span class="downloadselect"></span>
         <button class="btn btn-primary installupdatebutton" hidden>Install</button>
       </div>
+      <div class="nb-row engine-byurl" hidden>
+        <input type="text" class="f-releaseurl" placeholder="&hellip;or paste a release tarball URL (nebula-&lt;os&gt;-&lt;arch&gt;.tar.gz)">
+        <button class="btn installurlbutton">Install from URL</button>
+      </div>
       <div class="engine-remote" hidden>
         <div class="nb-hint">
           This peer doesn't have the Nebula app yet. Install it from here &mdash;
@@ -45,6 +49,8 @@
         <div class="lbl">networks</div>
         <button class="btn btn-primary addnetworkbutton">New network</button>
       </div>
+      <div class="nb-hint noengine-hint" hidden>Creating a network signs certificates with the bundled
+        nebula-cert tool &mdash; install the engine above first.</div>
       <div class="foundnetworks"></div>
     </section>
   </main>
@@ -65,19 +71,20 @@
         </div>
         <button class="btn backbutton">&#8592; All networks</button>
       </div>
-      <div class="nb-row">
-        <button class="btn btn-primary svc-runnow">Run now (supervised)</button>
-        <span class="nb-hint">Runs the tunnel as a child process of Newbound &mdash; no systemd, no sudo.
-          Auto-start at boot: list the network in the <span class="mono">start=</span> key of
-          <span class="mono">runtime/nebula/botd.properties</span>.</span>
+      <div class="nb-row nb-runrow">
+        <span class="tunnelstate"><span class="dot"></span><span class="tunnelstate-msg">checking&hellip;</span></span>
+        <button class="btn btn-primary svc-runnow">Run now</button>
+        <button class="btn svc-stopnow" hidden>Stop</button>
+        <label class="nb-switch"><input type="checkbox" class="svc-boot"><span class="nb-slider"></span> Start at boot</label>
       </div>
-      <div class="nb-row nb-switchrow">
+      <div class="nb-hint">The tunnel runs as a supervised child process of Newbound &mdash; no systemd, no sudo.</div>
+      <div class="nb-row nb-switchrow systemd-only">
         <label class="nb-switch"><input type="checkbox" class="svc-installed"><span class="nb-slider"></span> Installed as systemd service</label>
         <label class="nb-switch"><input type="checkbox" class="svc-running"><span class="nb-slider"></span> Running (systemd)</label>
         <button class="btn svc-restart">Restart</button>
       </div>
       <div class="nb-form">
-        <label><span class="lbl">this host is a lighthouse</span><input type="checkbox" class="f-amlighthouse"></label>
+        <label class="nb-switch"><input type="checkbox" class="f-amlighthouse"><span class="nb-slider"></span> this host is a lighthouse (publicly reachable)</label>
         <label><span class="lbl">network interface</span><input type="text" class="f-host" placeholder="IP address to listen on"></label>
         <label><span class="lbl">port</span><input type="number" class="f-port" placeholder="Port to listen on"></label>
         <label><span class="lbl">private subnet</span><input type="text" class="f-subnet" placeholder="Example: 192.168.100.X/24"></label>
@@ -91,15 +98,24 @@
         <div class="lbl">lighthouses</div>
         <button class="btn btn-primary addlighthousebutton">Add lighthouse</button>
       </div>
-      <div class="nb-hint">Publicly reachable hosts that members use to find each other. Changes apply when you save the configuration.</div>
+      <div class="nb-hint">Optional: with the peer mesh, members already exchange addresses over the encrypted
+        Newbound peer network and hole-punch directly. Add a lighthouse only when some members still cannot
+        reach each other (very strict NATs) &mdash; it must be publicly reachable. Changes apply when you save
+        the configuration.</div>
       <div class="lighthouselist"></div>
     </section>
 
     <section class="nb-tabpane pane-mem" hidden>
       <div class="nb-row nb-row-between">
         <div class="lbl">members</div>
-        <button class="btn btn-primary addmemberbutton">Add member</button>
+        <div class="nb-row">
+          <button class="btn syncmeshbutton">Sync mesh</button>
+          <button class="btn btn-primary addmemberbutton">Add member</button>
+        </div>
       </div>
+      <div class="nb-hint">Members find each other without a public lighthouse: <b>Sync mesh</b> gathers every
+        member's addresses over the encrypted peer network and pushes the map to all of them (it also runs
+        when you add a member).</div>
       <div class="nb-hint nopeers-hint" hidden>
         No connected peers. Adding a member signs a certificate here and delivers
         it to a connected peer &mdash; connect one in the

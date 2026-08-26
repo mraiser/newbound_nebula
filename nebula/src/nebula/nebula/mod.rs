@@ -1,5 +1,10 @@
 // This file is auto-generated and managed by the flowlang build script.
 use flowlang::rustcmd::Transform;
+pub mod update_hosts;
+pub mod endpoints;
+pub mod releases;
+pub mod set_boot;
+pub mod stop;
 pub mod remove_member;
 pub mod uninstall_service;
 pub mod stop_service;
@@ -33,4 +38,9 @@ pub fn cmdinit(cmds: &mut Vec<(String, Transform, String)>) {
     cmds.push(("jqlvpv184fe9036e4ked".to_string(), stop_service::execute, "".to_string()));
     cmds.push(("pvwytp1855e18b651y18".to_string(), uninstall_service::execute, "".to_string()));
     cmds.push(("lnrqmk19ff0944578v1".to_string(), remove_member::execute, "".to_string()));
+    cmds.push(("kzitxo1a03e29c32bk1".to_string(), stop::execute, "".to_string()));
+    cmds.push(("riwrxj1a03e2afc73o1".to_string(), set_boot::execute, "".to_string()));
+    cmds.push(("ugmpxx1a03e2b03e0p1".to_string(), releases::execute, "".to_string()));
+    cmds.push(("gnnlzm1a03e2ba6c8y1".to_string(), endpoints::execute, "".to_string()));
+    cmds.push(("rrpqpp1a03e2baf27y1".to_string(), update_hosts::execute, "".to_string()));
 }
