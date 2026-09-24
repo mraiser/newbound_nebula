@@ -9,16 +9,8 @@ mod api;
 pub static API : crate::api::api = crate::api::new();
 
 use std::sync::Once;
+use flowlang::hotswap::Initializer;
 pub mod nebula;
-
-// THIS IS THE FFI-SAFE INITIALIZER STRUCT.
-// ITS DEFINITION MUST EXACTLY MATCH THE ONE IN THE MAIN BINARY.
-#[repr(C)]
-#[derive(Debug)]
-pub struct Initializer {
-    pub ndata_config: ndata::NDataConfig,
-    pub cmds: Vec<(String, Transform, String)>,
-}
 
 static START: Once = Once::new();
 
@@ -26,13 +18,21 @@ static START: Once = Once::new();
 pub unsafe extern "C" fn mirror_nebula(initializer: *mut Initializer) {
     if initializer.is_null() { return; }
 
-    // Use Once to ensure ndata::mirror is only ever called one time,
-    // even across multiple hot-reloads of this library.
+    // Mirror the host's ndata heaps exactly once per loaded generation of
+    // this library, however many times the host calls in.
     START.call_once(|| {
         flowlang::mirror(("data", (*initializer).ndata_config));
     });
 
-    // Then, call this library's internal cmdinit to populate the cmds vector.
-    // We want this to run on every reload to register any new commands.
+    // Register this library's commands on every call, so a reload picks
+    // up new and changed ones.
     cmdinit(&mut (*initializer).cmds);
+}
+
+// ABI guard: the host compares this against its own contract before
+// calling mirror, and refuses the load when the two flowlang copies
+// disagree about the handshake.
+#[no_mangle]
+pub extern "C" fn nb_ffi_contract_nebula() -> *const std::os::raw::c_char {
+    flowlang::hotswap::contract_ptr()
 }
