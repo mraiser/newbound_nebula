@@ -100,6 +100,7 @@
       </div>
       <div class="nb-form">
         <label class="nb-switch"><input type="checkbox" class="f-amlighthouse"><span class="nb-slider"></span> this host is a lighthouse (publicly reachable)</label>
+        <label class="publicaddr" hidden><span class="lbl">public address (for phones)</span><input type="text" class="f-publicaddr" placeholder="What phones dial from the internet, e.g. 203.0.113.10:4243"></label>
         <label><span class="lbl">network interface</span><input type="text" class="f-host" placeholder="IP address to listen on"></label>
         <label><span class="lbl">port</span><input type="number" class="f-port" placeholder="Port to listen on"></label>
         <label><span class="lbl">private subnet</span><input type="text" class="f-subnet" placeholder="Example: 192.168.100.X/24"></label>
@@ -126,6 +127,7 @@
         <div class="lbl">members</div>
         <div class="nb-row">
           <button class="btn syncmeshbutton">Sync mesh</button>
+          <button class="btn addphonebutton">Add a phone</button>
           <button class="btn btn-primary addmemberbutton">Add member</button>
         </div>
       </div>

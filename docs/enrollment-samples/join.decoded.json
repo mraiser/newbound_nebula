@@ -1,0 +1,31 @@
+{
+  "ca": "-----BEGIN NEBULA CERTIFICATE-----\nCjoKCHQtc2FtcGxlKNybnNgGMNyhzO4HOiD1gFGscHSvsTscFG1r2cI2q9QQth9N\nHnvP6nRuXCinNUABEkCowS5uif/kqxhixS5oAxa7pABLMHj8bAXQ6ZZ9aCIkaOd8\nRjA2idvvBSttsuCe9TTtFYBLTaWBlocLIrRM6CIP\n-----END NEBULA CERTIFICATE-----\n",
+  "ca_fingerprint": "b1255f057ea3f970323aba9100ab091bb15e325a6bfa7586ad3f169a9f648a77",
+  "cert": "-----BEGIN NEBULA CERTIFICATE-----\nCoIBCg1TYW1wbGUgaVBob25lEgqE+qOFDID+//8PIgZtZW1iZXIiBXBob25lIgZm\nYW1pbHkotJ2c2AYw26HM7gc6IGi2U5J/dgATB9qMyoHnJp4F1of9IT1QnpitWUIo\noYEuSiCxJV8FfqP5cDI6upEAqwkbsV4yWmv6dYatPxaan2SKdxJA79ywThmjojfN\nzlYtSNnew9WSs5rq48BorRQVlYE4iUR0IzXRxTlsElnylfAybPcyYWiJyG4RpYF5\nY0MEc62tCQ==\n-----END NEBULA CERTIFICATE-----\n",
+  "created": 1795624628,
+  "device_name": "Sample iPhone",
+  "expires": 1795625228,
+  "groups": [
+    "member",
+    "phone",
+    "family"
+  ],
+  "ip": "192.168.253.4/24",
+  "key": "-----BEGIN NEBULA X25519 PRIVATE KEY-----\nM+PIXG67Qy7ZxfjedeWdFMYFfbkd3PNCW+YJgm5S4vs=\n-----END NEBULA X25519 PRIVATE KEY-----\n",
+  "kind": "join",
+  "lighthouses": [
+    {
+      "addrs": [
+        "203.0.113.10:4253"
+      ],
+      "nebula_ip": "192.168.253.1"
+    }
+  ],
+  "network": "t-sample",
+  "newbound_url": "http://192.168.253.1:33182",
+  "owner": {
+    "name": "Eyevea",
+    "peer_id": "61165b8b-7423-4b57-9709-baeb997b3b19"
+  },
+  "v": 1
+}

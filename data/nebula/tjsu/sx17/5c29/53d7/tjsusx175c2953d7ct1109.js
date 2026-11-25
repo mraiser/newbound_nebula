@@ -481,19 +481,23 @@ function renderRunHelp(n){
   else box.find('.runfix-details').attr('hidden', true);
   box.removeAttr('hidden');
 }
-$(ME).find('.copyfix').click(function(){
-  var txt = $(ME).find('.runfix-cmd').text(), btn = $(this);
-  function done(){ btn.text('Copied'); setTimeout(function(){ btn.text('Copy'); }, 1500); }
-  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(txt).then(done, fallback);
-  else fallback();
-  // plain-HTTP pages have no async clipboard: select + execCommand instead
+// Copy text and flash the button; plain-HTTP pages have no async clipboard,
+// so fall back to select + execCommand.
+function copyText(txt, btn){
+  var label = btn.text();
+  function done(){ btn.text('Copied'); setTimeout(function(){ btn.text(label); }, 1500); }
   function fallback(){
     var ta = $('<textarea class="nb-offscreen"></textarea>').val(txt).appendTo(ME);
     ta[0].select();
-    try { document.execCommand('copy'); done(); } catch (x) { status('Select the command and copy it by hand.', 'err'); }
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (x) {}
     ta.remove();
+    if (ok) done(); else status('This browser blocked copying. Select the text and copy it by hand.', 'err');
   }
-});
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(txt).then(done, fallback);
+  else fallback();
+}
+$(ME).find('.copyfix').click(function(){ copyText($(ME).find('.runfix-cmd').text(), $(this)); });
 
 function isLoopback(a){ return /^(127\.|localhost$|::1$|\[::1\]$)/.test((a || '').trim()); }
 function renderLoopback(){
@@ -523,6 +527,8 @@ function renderServicePane(n){
   $(ME).find('.svc-installed').prop('checked', !!n.service);
   $(ME).find('.svc-running').prop('checked', !!n.service_running);
   $(ME).find('.f-amlighthouse').prop('checked', !!c.am_lighthouse);
+  $(ME).find('.f-publicaddr').val(c.public_address || '');
+  togglePublicAddr();
   $(ME).find('.f-host').val(c.host || '');
   $(ME).find('.f-port').val(c.port || '');
   $(ME).find('.f-subnet').val(c.subnet || '');
@@ -618,6 +624,7 @@ function saveConfig(){
     port: $(ME).find('.f-port').val(),
     groups: $(ME).find('.f-groups').val(),
     am_lighthouse: $(ME).find('.f-amlighthouse').prop('checked'),
+    public_address: ($(ME).find('.f-publicaddr').val() || '').trim(),
     lighthouses: S.lighthouses,
     hosts: (S.networks[S.selected].config.hosts || {}),
     use_yaml: $(ME).find('.f-useyaml').prop('checked')
@@ -705,17 +712,20 @@ function renderMembers(){
   else $(ME).find('.addmemberbutton').removeAttr('disabled');
   var ids = Object.keys(S.members);
   if (!ids.length){ box.append($('<div class="nb-empty">No members yet.</div>')); return; }
-  var t = $('<table class="nb-table"><thead><tr><th>Peer</th><th>Private IP</th><th>Groups</th><th></th></tr></thead><tbody></tbody></table>');
+  var t = $('<table class="nb-table"><thead><tr><th>Member</th><th>Private IP</th><th>Groups</th><th></th></tr></thead><tbody></tbody></table>');
   var tb = t.find('tbody');
   for (var i in ids){
     (function(id){
       var m = S.members[id];
       var tr = $('<tr></tr>');
-      tr.append($('<td></td>').append($('<div></div>').text(m.name || peerName(id)), $('<div class="peerid"></div>').text(id)));
+      var who = $('<div></div>').text(m.name || peerName(id));
+      if (m.kind == 'phone') who.append($('<span class="nb-badge">phone</span>'));
+      var sub = m.kind == 'phone' && m.added ? 'added ' + fmtDate(new Date(m.added * 1000)) : id;
+      tr.append($('<td></td>').append(who, $('<div class="peerid"></div>').text(sub)));
       tr.append($('<td></td>').text(m.ip_address || ''));
       tr.append($('<td></td>').text(m.groups || ''));
       tr.append($('<td></td>').append($('<button class="rowbtn danger">remove</button>').click(function(){
-        if (!confirm('Remove ' + peerName(id) + ' from ' + S.selected + '?\n\nIts issued certificate stays valid until it expires or the CA is rotated — removal only stops future re-issue.')) return;
+        if (!confirm('Remove ' + (m.name || peerName(id)) + ' from ' + S.selected + '?\n\nIts issued certificate stays valid until it expires or the CA is rotated — removal only stops future re-issue.')) return;
         send_remove_member(S.selected, id, function(result){
           var o = outcome(result);
           status(o.ok ? 'Member removed. The certificate remains valid until expiry or CA rotation.' : o.msg, o.ok ? 'ok' : 'err');
@@ -756,7 +766,8 @@ function syncMesh(quiet){
   var cfg = S.networks[name].config;
   var port = cfg.port;
   var ownerUuid = S.peer ? S.peer : S.mypeerid;
-  var ids = Object.keys(S.members);
+  // phones aren't on the Newbound peer network: they get the map in their join code
+  var ids = Object.keys(S.members).filter(function(id){ return S.members[id].kind != 'phone'; });
   if (!ids.length){ if (!quiet) status('No members yet — the mesh has nothing to sync.', 'ok'); return; }
   busy('.syncmeshbutton', true);
   if (!quiet) status('Syncing the mesh: gathering addresses over the peer network…', 'busy');
@@ -875,8 +886,11 @@ function openModal(ctl, data){
   installControl(card[0], 'nebula', ctl, function(){}, data);
 }
 function closeModal(){
+  var hadPhone = !!PHONE;
+  wipePhone();
   $(ME).find('.nb-modal').attr('hidden', true);
   $(ME).find('.popmeup').empty();
+  if (hadPhone && S.selected) loadMembers();
 }
 $(ME).find('.nb-modal').click(function(e){ if (e.target === this) closeModal(); });
 $(document).keydown(function(e){
@@ -892,3 +906,212 @@ $(document).keydown(function(e){
     saveConfig();
   }
 });
+
+// ---- public address of this host, when it is its own lighthouse ----
+function togglePublicAddr(){
+  if ($(ME).find('.f-amlighthouse').prop('checked')) $(ME).find('.publicaddr').removeAttr('hidden');
+  else $(ME).find('.publicaddr').attr('hidden', true);
+}
+$(ME).find('.f-amlighthouse').change(togglePublicAddr);
+
+// ---- Add a phone: Mode A of ENROLLMENT.md (one scan) ----
+// add_phone signs the cert and returns the join payload, private key
+// included. The key lives only in PHONE (this page's memory) until the code
+// expires or the dialog closes; then it is dropped. Nothing is stored.
+var PHONE = null;   // { join, url, deadline, timer }
+
+function wipePhone(){
+  if (!PHONE) return;
+  if (PHONE.timer) clearInterval(PHONE.timer);
+  if (PHONE.join) PHONE.join.key = null;
+  PHONE.join = null; PHONE.url = null;
+  PHONE = null;
+}
+
+function loadQR(cb){
+  if (window.QRCode && window.QRCode.Model) return cb();
+  var s = document.createElement('script');
+  s.src = '../app/asset/nebula/vendor/qrcode.js';
+  s.onload = function(){ cb(); };
+  s.onerror = function(){ cb('The QR encoder didn’t load.'); };
+  document.head.appendChild(s);
+}
+
+// ENROLLMENT §1.1: JSON -> raw DEFLATE -> base64url (no padding) -> newbound://join?v=1&d=
+function b64url(bytes){
+  var s = '';
+  for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function joinURL(obj){
+  if (typeof CompressionStream == 'undefined')
+    return Promise.reject(new Error('This browser can’t compress the code (no CompressionStream). Use a current Chrome, Edge, Firefox or Safari.'));
+  var stream = new Blob([JSON.stringify(obj)]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+  return new Response(stream).arrayBuffer().then(function(buf){
+    return 'newbound://' + obj.kind + '?v=1&d=' + b64url(new Uint8Array(buf));
+  });
+}
+
+function qrSVG(text){
+  var L = QRCode.CorrectLevel.L;
+  var m = new QRCode.Model(QRCode.typeNumberFor(text, L), L);
+  m.addData(text); m.make();
+  var n = m.getModuleCount(), q = 4, d = '';
+  for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (m.isDark(r, c)) d += 'M' + (c + q) + ' ' + (r + q) + 'h1v1h-1z';
+  var size = n + 2 * q, px = Math.max(4, Math.floor(560 / size));
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + size + ' ' + size + '" width="' + (size * px) + '" height="' + (size * px) +
+    '" shape-rendering="crispEdges" role="img" aria-label="Join code for this phone"><rect width="' + size + '" height="' + size + '" fill="#fff"/><path d="' + d + '" fill="#000"/></svg>';
+}
+
+function slug(s){ return (s || 'phone').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'phone'; }
+function download(name, text, type){
+  var a = document.createElement('a');
+  var url = URL.createObjectURL(new Blob([text], { type: type || 'text/plain' }));
+  a.href = url; a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+
+// ENROLLMENT §2.1: a plain nebula YAML with the PEMs inline, for
+// Defined Networking's Mobile Nebula app until nebula mobile ships.
+function mobileNebulaYAML(j){
+  function pem(s){ return '|\n' + String(s || '').trim().split('\n').map(function(l){ return '    ' + l; }).join('\n') + '\n'; }
+  var shm = '', hosts = '';
+  for (var i in j.lighthouses){
+    var lh = j.lighthouses[i];
+    shm += '  "' + lh.nebula_ip + '": [' + lh.addrs.map(function(a){ return '"' + a + '"'; }).join(', ') + ']\n';
+    hosts += '    - "' + lh.nebula_ip + '"\n';
+  }
+  for (var ip in (j.static_hosts || {})){
+    var isLh = j.lighthouses.some(function(l){ return l.nebula_ip == ip; });
+    if (!isLh) shm += '  "' + ip + '": [' + j.static_hosts[ip].map(function(a){ return '"' + a + '"'; }).join(', ') + ']\n';
+  }
+  return '# ' + j.device_name + ' on ' + j.network + ' (made by the Newbound nebula app)\n' +
+    '# Contains this phone’s private key: import it, then delete the file.\n' +
+    'pki:\n  ca: ' + pem(j.ca) + '  cert: ' + pem(j.cert) + '  key: ' + pem(j.key) +
+    'static_host_map:\n' + shm +
+    'lighthouse:\n  am_lighthouse: false\n  interval: 60\n  hosts:\n' + hosts +
+    'listen:\n  host: 0.0.0.0\n  port: 0\n' +
+    'punchy:\n  punch: true\n  respond: true\n' +
+    'tun:\n  mtu: 1300\n' +
+    'firewall:\n  outbound:\n    - port: any\n      proto: any\n      host: any\n' +
+    '  inbound:\n    - port: any\n      proto: icmp\n      host: any\n';
+}
+
+function phoneStep1(err, fix){
+  var card = $(ME).find('.popmeup').empty();
+  var d = $('<div class="nbdlg phonedlg">' +
+    '<div class="nbdlg-head"><span class="nbdlg-title">Add a phone</span><button class="nbdlg-x" title="Close">&#10005;</button></div>' +
+    '<div class="nbdlg-body">' +
+      '<label><span class="lbl">phone name</span><input type="text" class="ph-name" maxlength="64" placeholder="e.g. Alex’s iPhone"></label>' +
+      '<label><span class="lbl">extra groups (optional)</span><input type="text" class="ph-groups" placeholder="Comma separated — member and phone are always added"></label>' +
+      '<div class="nb-hint ph-explain"></div>' +
+      '<div class="nbdlg-err" hidden></div>' +
+      '<div class="ph-fix" hidden></div>' +
+    '</div>' +
+    '<div class="nbdlg-foot"><button class="btn ph-cancel">Cancel</button><button class="btn btn-primary ph-make">Make join code</button></div>' +
+  '</div>');
+  d.find('.ph-explain').text('Newbound makes the phone’s key and puts everything in one QR code. Anyone who sees the code can join ' +
+    S.selected + ' as this phone, so show it only to the phone. The code disappears after 10 minutes.');
+  d.find('.nbdlg-x, .ph-cancel').click(closeModal);
+  d.find('.ph-make').click(makePhone);
+  d.find('.ph-name').on('keydown', function(e){ if (e.key == 'Enter') makePhone(); });
+  card.append(d);
+  $(ME).find('.nb-modal').removeAttr('hidden');
+  if (err) phoneErr(err, fix);
+  d.find('.ph-name').focus();
+}
+
+function phoneErr(msg, fix){
+  var card = $(ME).find('.popmeup');
+  card.find('.nbdlg-err').removeAttr('hidden').text(msg);
+  var box = card.find('.ph-fix').empty().attr('hidden', true);
+  if (fix){
+    box.removeAttr('hidden').append($('<button class="btn"></button>').text(fix.label).click(function(){ closeModal(); fix.go(); }));
+  }
+}
+
+function gotoTab(tab, focus){
+  $(ME).find('.nb-tab[data-tab=' + tab + ']').click();
+  if (focus) setTimeout(function(){ $(ME).find(focus).focus(); }, 50);
+}
+
+function makePhone(){
+  var card = $(ME).find('.popmeup');
+  var name = (card.find('.ph-name').val() || '').trim();
+  var groups = (card.find('.ph-groups').val() || '').trim();
+  if (!name) return phoneErr('Give the phone a name first.');
+  if (S.dirty) return phoneErr('Save your changes first — the phone gets the saved lighthouses.', { label: 'Save configuration', go: saveConfig });
+  card.find('.nbdlg-err').attr('hidden', true);
+  busy('.ph-make', true);
+  send_add_phone(S.selected, name, groups, function(result){
+    busy('.ph-make', false);
+    var o = outcome(result);
+    if (!o.ok){
+      var r = result && result.data && result.data.reason;
+      var fix = null;
+      if (r == 'no_lighthouse'){
+        var self = $(ME).find('.f-amlighthouse').prop('checked');
+        fix = self ? { label: 'Open the Service tab', go: function(){ gotoTab('svc', '.f-publicaddr'); } }
+                   : { label: 'Open the Lighthouses tab', go: function(){ gotoTab('lh'); } };
+      }
+      return phoneErr(o.msg, fix);
+    }
+    var j = result.data.join;
+    // count down from now, not from the server clock
+    PHONE = { join: j, deadline: Date.now() + (j.expires - j.created) * 1000 };
+    joinURL(j).then(function(url){
+      if (!PHONE) return;     // closed meanwhile
+      PHONE.url = url;
+      loadQR(function(err){ if (PHONE) phoneStep2(err); });
+    }, function(e){ phoneErr(e.message); });
+  }, S.peer);
+}
+
+function phoneStep2(qrErr){
+  var j = PHONE.join, url = PHONE.url, long = url.length > 1800;
+  var card = $(ME).find('.popmeup').empty();
+  var d = $('<div class="nbdlg phonedlg">' +
+    '<div class="nbdlg-head"><span class="nbdlg-title">Add a phone</span><button class="nbdlg-x" title="Close">&#10005;</button></div>' +
+    '<div class="nbdlg-body">' +
+      '<div class="ph-meta"></div>' +
+      '<div class="ph-qrbox"><div class="ph-qr blurred"></div><button class="btn btn-primary ph-show">Show code</button></div>' +
+      '<div class="nb-hint ph-long" hidden>This code is long, so the QR is dense. If the phone can’t read it, use the file or the link.</div>' +
+      '<div class="ph-actions">' +
+        '<button class="btn ph-dl">Download .nbjoin</button>' +
+        '<button class="btn ph-copy">Copy link</button>' +
+        '<button class="btn ph-yaml" title="A nebula YAML for Defined Networking’s Mobile Nebula app">Download for Mobile Nebula</button>' +
+      '</div>' +
+      '<div class="nb-hint ph-scanhint">Scan with the phone’s camera once nebula mobile is installed. Until then, the Mobile Nebula file works with Defined Networking’s app. The files hold the phone’s private key: send them only to the phone, then delete them.</div>' +
+    '</div>' +
+    '<div class="nbdlg-foot"><button class="btn btn-primary ph-done">Done</button></div>' +
+  '</div>');
+  d.find('.ph-meta').append($('<b></b>').text(j.device_name), document.createTextNode(' · ' + j.ip.split('/')[0] + ' on ' + j.network + ' · '),
+    $('<span class="ph-when"></span>').append(document.createTextNode('code disappears in '), $('<span class="ph-left"></span>')));
+  if (long){ d.find('.ph-actions').insertBefore(d.find('.ph-qrbox')); d.find('.ph-long').removeAttr('hidden'); }
+  if (qrErr) d.find('.ph-qrbox').empty().append($('<div class="ph-expired"></div>').text(qrErr + ' Use the file or the link instead.'));
+  else d.find('.ph-qr').html(qrSVG(url));
+  d.find('.ph-show').click(function(){ d.find('.ph-qr').removeClass('blurred'); $(this).remove(); });
+  d.find('.ph-dl').click(function(){ if (PHONE) download(j.network + '-' + slug(j.device_name) + '.nbjoin', PHONE.url + '\n', 'application/octet-stream'); });
+  d.find('.ph-copy').click(function(){ if (PHONE) copyText(PHONE.url, $(this)); });
+  d.find('.ph-yaml').click(function(){ if (PHONE) download(j.network + '-' + slug(j.device_name) + '.yml', mobileNebulaYAML(PHONE.join), 'application/x-yaml'); });
+  d.find('.nbdlg-x, .ph-done').click(closeModal);
+  card.append(d);
+  function tick(){
+    if (!PHONE) return;
+    var left = Math.max(0, Math.round((PHONE.deadline - Date.now()) / 1000));
+    d.find('.ph-left').text(Math.floor(left / 60) + ':' + ('0' + (left % 60)).slice(-2));
+    if (left > 0) return;
+    // expired: drop the key and everything that encodes it
+    clearInterval(PHONE.timer); PHONE.timer = null;
+    if (PHONE.join) PHONE.join.key = null;
+    PHONE.join = null; PHONE.url = null;
+    d.find('.ph-qrbox, .ph-actions, .ph-long, .ph-scanhint').remove();
+    d.find('.ph-when').text('code expired');
+    d.find('.ph-meta').after($('<div class="ph-expired"></div>').text('This code has expired and can’t be shown again. ' +
+      j.device_name + ' is listed under Members; if it didn’t join, remove it there and add the phone again.'));
+  }
+  PHONE.timer = setInterval(tick, 1000);
+  tick();
+}
+
+$(ME).find('.addphonebutton').click(function(){ phoneStep1(); });

@@ -3,7 +3,7 @@
 
 /* one control height for buttons, selects and text inputs, so every row
    shares a baseline and edge (#13) */
-.nb-app { --nb-ctl-h: 32px; }
+.nb-app { --nb-ctl-h: 32px; color-scheme: dark; }
 .nb-app { display: flex; flex-direction: column; height: 100vh; background: var(--ground); color: var(--text); }
 .nb-app .mono { font-family: var(--mono); }
 
@@ -170,6 +170,21 @@
 /* certificate expiry banner (#5) */
 .nb-banner { padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel-2); color: var(--accent); line-height: 1.5; }
 .nb-banner.expired { color: var(--danger); }
+/* Add a phone (Phase 2) */
+.phonedlg { width: min(640px, 92vw); }
+.ph-meta { color: var(--text-dim); font-size: 13px; }
+.ph-meta b { color: var(--text); font-weight: 600; }
+.ph-meta .ph-left { font-family: var(--mono); color: var(--accent); }
+.ph-qrbox { position: relative; display: flex; justify-content: center; align-items: center; padding: 6px 0; }
+/* a QR needs dark modules on a light quiet zone to scan: plain black on white, not theme tokens */
+.ph-qr svg { display: block; max-width: 100%; max-height: min(560px, max(360px, calc(88vh - 290px)));  /* never so small a phone camera can't read it */ width: auto; height: auto; }
+.ph-qr.blurred { filter: blur(14px); opacity: 0.6; pointer-events: none; user-select: none; }
+.ph-show { position: absolute; }
+.ph-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ph-expired { color: var(--text-dim); padding: 24px 12px; text-align: center; line-height: 1.5; border: 1px dashed var(--line); border-radius: 6px; }
+.ph-fix { display: flex; gap: 8px; }
+.nb-badge { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 1px 6px; margin-left: 6px;
+  border-radius: 8px; border: 1px solid var(--accent-dim); color: var(--accent); vertical-align: 1px; }
 .nb-offscreen { position: fixed; left: -9999px; top: 0; opacity: 0; }
 
 /* a switch inside the config form lays out in a row, not the label column */
