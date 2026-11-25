@@ -36,9 +36,51 @@ fn nb_with_port(addr: &str, port: &str) -> String {
   else { format!("{}:{}", a, port) }
 }
 
+/// Standard base64 (with or without padding) -> bytes; None on bad input.
+fn nb_b64_decode(s: &str) -> Option<Vec<u8>> {
+  let mut out = Vec::new(); let mut buf = 0u32; let mut bits = 0;
+  for c in s.chars() {
+    let v = match c { 'A'..='Z' => c as u32 - 65, 'a'..='z' => c as u32 - 71, '0'..='9' => c as u32 + 4, '+' => 62, '/' => 63,
+                      '=' => break, ' ' | '\n' | '\r' | '\t' => continue, _ => return None };
+    buf = (buf << 6) | v; bits += 6;
+    if bits >= 8 { bits -= 8; out.push((buf >> bits) as u8); buf &= (1 << bits) - 1; }
+  }
+  Some(out)
+}
+
+/// SHA-256 (FIPS 180-4), hex. Small and dependency-free on purpose.
+fn nb_sha256_hex(data: &[u8]) -> String {
+  const K: [u32; 64] = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  let mut h: [u32; 8] = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  let mut m = data.to_vec(); let bitlen = (data.len() as u64) * 8;
+  m.push(0x80); while m.len() % 64 != 56 { m.push(0); } m.extend_from_slice(&bitlen.to_be_bytes());
+  for chunk in m.chunks(64) {
+    let mut w = [0u32; 64];
+    for i in 0..16 { w[i] = u32::from_be_bytes([chunk[4*i], chunk[4*i+1], chunk[4*i+2], chunk[4*i+3]]); }
+    for i in 16..64 {
+      let s0 = w[i-15].rotate_right(7) ^ w[i-15].rotate_right(18) ^ (w[i-15] >> 3);
+      let s1 = w[i-2].rotate_right(17) ^ w[i-2].rotate_right(19) ^ (w[i-2] >> 10);
+      w[i] = w[i-16].wrapping_add(s0).wrapping_add(w[i-7]).wrapping_add(s1);
+    }
+    let (mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut hh) = (h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7]);
+    for i in 0..64 {
+      let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
+      let ch = (e & f) ^ (!e & g);
+      let t1 = hh.wrapping_add(s1).wrapping_add(ch).wrapping_add(K[i]).wrapping_add(w[i]);
+      let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
+      let maj = (a & b) ^ (a & c) ^ (b & c);
+      let t2 = s0.wrapping_add(maj);
+      hh = g; g = f; f = e; e = d.wrapping_add(t1); d = c; c = b; b = a; a = t1.wrapping_add(t2);
+    }
+    h[0] = h[0].wrapping_add(a); h[1] = h[1].wrapping_add(b); h[2] = h[2].wrapping_add(c); h[3] = h[3].wrapping_add(d);
+    h[4] = h[4].wrapping_add(e); h[5] = h[5].wrapping_add(f); h[6] = h[6].wrapping_add(g); h[7] = h[7].wrapping_add(hh);
+  }
+  h.iter().map(|x| format!("{:08x}", x)).collect()
+}
+
 pub fn execute(o: DataObject) -> DataObject {
     use std::panic;
-    for p in ["servicename", "device_name", "groups"] {
+    for p in ["servicename", "device_name", "groups", "pubkey"] {
         if !o.has(p) {
             let mut e = DataObject::new();
             e.put_string("status", "err");
@@ -52,7 +94,8 @@ pub fn execute(o: DataObject) -> DataObject {
         let arg_0: String = o.get_string("servicename");
         let arg_1: String = o.get_string("device_name");
         let arg_2: String = o.get_string("groups");
-        add_phone(arg_0, arg_1, arg_2)
+        let arg_3: String = o.get_string("pubkey");
+        add_phone(arg_0, arg_1, arg_2, arg_3)
     }));
     match ax {
         Ok(ax) => {
@@ -84,7 +127,7 @@ pub fn execute(o: DataObject) -> DataObject {
     }
 }
 
-pub fn add_phone(servicename: String, device_name: String, groups: String) -> DataObject {
+pub fn add_phone(servicename: String, device_name: String, groups: String, pubkey: String) -> DataObject {
 // Mode A of docs ENROLLMENT.md (§2): Newbound makes the phone's keypair and
 // hands everything to the phone in one join code. The private key is read
 // into memory and returned once; it is never kept on this instance (only
@@ -97,6 +140,20 @@ let certbin = root.join("bin").join("nebula-cert");
 let device_name = device_name.trim().to_string();
 if device_name.is_empty() { return nb_err("Give the phone a name first.", "bad_name"); }
 if device_name.chars().count() > 64 { return nb_err("Keep the phone's name under 64 characters.", "bad_name"); }
+// Mode B2 (ENROLLMENT §3.2): the phone made its own keypair and sent only
+// its public key. Check it before anything is recorded.
+let pubkey = pubkey.trim().replace("\r", "");
+let b2 = !pubkey.is_empty();
+let mut pubkey_fingerprint = String::new();
+if b2 {
+  let begin = "-----BEGIN NEBULA X25519 PUBLIC KEY-----";
+  let end = "-----END NEBULA X25519 PUBLIC KEY-----";
+  let (bi, ei) = match (pubkey.find(begin), pubkey.find(end)) { (Some(b), Some(e)) if e > b => (b, e), _ =>
+    return nb_err("That isn't a nebula public key. Paste the whole block, from -----BEGIN NEBULA X25519 PUBLIC KEY----- to the END line.", "bad_pubkey") };
+  let raw = match nb_b64_decode(&pubkey[bi + begin.len()..ei]) { Some(r) if r.len() == 32 => r, _ =>
+    return nb_err("That public key is damaged (it should hold 32 bytes). Copy it again from the phone.", "bad_pubkey") };
+  pubkey_fingerprint = nb_sha256_hex(&raw);
+}
 if !home.join("ca.key").exists() { return nb_err("Only the instance that owns this network can add phones.", "not_owner"); }
 if !certbin.exists() { return nb_err("Install the nebula engine first.", "no_engine"); }
 
@@ -191,16 +248,22 @@ let _ = fs::remove_dir_all(&tmp);
 if let Err(e) = fs::create_dir_all(&tmp) { return nb_err(&format!("Couldn't create a temporary folder: {}", e), "io"); }
 #[cfg(unix)]
 { use std::os::unix::fs::PermissionsExt; let _ = fs::set_permissions(&tmp, fs::Permissions::from_mode(0o700)); }
-let out = std::process::Command::new(&certbin)
-  .args(["sign", "-ca-crt", &home.join("ca.crt").display().to_string(), "-ca-key", &home.join("ca.key").display().to_string(),
-         "-name", &device_name, "-ip", &ip_cidr, "-groups", &gl.join(","),
-         "-out-crt", &tmp.join("host.crt").display().to_string(), "-out-key", &tmp.join("host.key").display().to_string()])
-  .output();
+let mut args: Vec<String> = vec!["sign".into(), "-ca-crt".into(), home.join("ca.crt").display().to_string(),
+  "-ca-key".into(), home.join("ca.key").display().to_string(), "-name".into(), device_name.clone(), "-ip".into(), ip_cidr.clone(),
+  "-groups".into(), gl.join(","), "-out-crt".into(), tmp.join("host.crt").display().to_string()];
+if b2 {
+  // sign the phone's own public key: no private key is made here at all
+  let _ = fs::write(tmp.join("host.pub"), format!("{}\n", pubkey));
+  args.push("-in-pub".into()); args.push(tmp.join("host.pub").display().to_string());
+} else {
+  args.push("-out-key".into()); args.push(tmp.join("host.key").display().to_string());
+}
+let out = std::process::Command::new(&certbin).args(&args).output();
 let key = fs::read_to_string(tmp.join("host.key")).unwrap_or_default();
 let crt = fs::read_to_string(tmp.join("host.crt")).unwrap_or_default();
 let _ = fs::remove_dir_all(&tmp);
 let ok = match &out { Ok(o) => o.status.success(), Err(_) => false };
-if !ok || key.is_empty() || crt.is_empty() {
+if !ok || (!b2 && key.is_empty()) || crt.is_empty() {
   let why = match out { Ok(o) => String::from_utf8_lossy(&o.stderr).trim().to_string(), Err(e) => e.to_string() };
   return nb_err(&format!("nebula-cert couldn't sign the phone's certificate: {}", why), "sign_failed");
 }
@@ -213,6 +276,7 @@ let not_after = nb_cert_json_str(&certbin, &mhome.join("host.crt"), "notAfter");
 let fingerprint = nb_cert_json_str(&certbin, &mhome.join("host.crt"), "fingerprint");
 let mut info = DataObject::new();
 info.put_string("kind", "phone");
+info.put_string("mode", if b2 { "b2" } else { "a" });
 info.put_string("name", &device_name);
 info.put_string("ip_address", &ip_cidr);
 info.put_string("groups", &gl.join(","));
@@ -261,7 +325,7 @@ if owner_id.is_empty() {
 // The Mode A payload, field for field as ENROLLMENT.md §1.2 + §2.
 let mut j = DataObject::new();
 j.put_int("v", 1);
-j.put_string("kind", "join");
+j.put_string("kind", if b2 { "cert" } else { "join" });
 j.put_string("network", &servicename);
 j.put_string("ca_fingerprint", &nb_cert_json_str(&certbin, &home.join("ca.crt"), "fingerprint"));
 let mut owner = DataObject::new();
@@ -290,7 +354,9 @@ for g in &gl { ga.push_string(g); }
 j.put_array("groups", ga);
 j.put_string("ca", &fs::read_to_string(home.join("ca.crt")).unwrap_or_default());
 j.put_string("cert", &crt);
-j.put_string("key", &key);
+// Mode A carries the key (secret); B2's cert code never does, and says
+// which public key it was signed for instead.
+if b2 { j.put_string("pubkey_fingerprint", &pubkey_fingerprint); } else { j.put_string("key", &key); }
 j.put_int("expires", created + 600);
 
 let mut o = DataObject::new();

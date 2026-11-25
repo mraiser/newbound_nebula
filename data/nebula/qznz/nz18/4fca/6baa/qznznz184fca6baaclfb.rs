@@ -45,7 +45,21 @@ else {
 
   // The one home of the config.yml template - build_config renders through here.
   let path = &home.canonicalize().unwrap().into_os_string().into_string().unwrap();
-  let s = "pki:\n  ca: ".to_string()+path+"/ca.crt\n  cert: "+path+"/host.crt\n  key: "+path+"/host.key\nstatic_host_map:\n"+(&shm)+"lighthouse:\n  am_lighthouse: "+(&config.get_boolean("am_lighthouse").to_string())+"\n  interval: 60\n  hosts:\n"+(&hosts)+"listen:\n  host: "+(&config.get_string("host"))+"\n  port: "+(&config.get_string("port"))+"\npunchy:\n  punch: true\n  respond: true\ntun:\n  dev: "+(&servicename)+"\n  drop_local_broadcast: false\n  drop_multicast: false\n  tx_queue: 500\n  mtu: 1300\n  routes:\n  unsafe_routes:\nlogging:\n  level: info\n  format: text\nfirewall:\n  conntrack:\n    tcp_timeout: 120h\n    udp_timeout: 3m\n    default_timeout: 10m\n    max_connections: 100000\n  outbound:\n    - port: any\n      proto: any\n      host: any\n  inbound:\n    - port: any\n      proto: icmp\n      host: any\n    - port: any\n      proto: tcp\n      host: any\n";
+
+  // Removed members (ENROLLMENT §4): their cert fingerprints, refused by
+  // every host that has this config. Keys of the blocklist object.
+  let mut blocklist = "".to_string();
+  if config.has("blocklist") {
+    for fp in config.get_object("blocklist").keys() {
+      if fp.chars().all(|c| c.is_ascii_hexdigit()) && fp.len() >= 32 { blocklist = blocklist + "    - \"" + &fp + "\"\n"; }
+    }
+  }
+  if blocklist != "" { blocklist = "  blocklist:\n".to_string() + &blocklist; }
+
+  // Inbound rules (ENROLLMENT §5): networks created since Phase 3 accept
+  // only certs in group `member`; older networks keep `host: any`.
+  let who = if config.has("firewall") && config.get_string("firewall") == "member" { "groups: [member]" } else { "host: any" };
+  let s = "pki:\n  ca: ".to_string()+path+"/ca.crt\n  cert: "+path+"/host.crt\n  key: "+path+"/host.key\n"+(&blocklist)+"static_host_map:\n"+(&shm)+"lighthouse:\n  am_lighthouse: "+(&config.get_boolean("am_lighthouse").to_string())+"\n  interval: 60\n  hosts:\n"+(&hosts)+"listen:\n  host: "+(&config.get_string("host"))+"\n  port: "+(&config.get_string("port"))+"\npunchy:\n  punch: true\n  respond: true\ntun:\n  dev: "+(&servicename)+"\n  drop_local_broadcast: false\n  drop_multicast: false\n  tx_queue: 500\n  mtu: 1300\n  routes:\n  unsafe_routes:\nlogging:\n  level: info\n  format: text\nfirewall:\n  conntrack:\n    tcp_timeout: 120h\n    udp_timeout: 3m\n    default_timeout: 10m\n    max_connections: 100000\n  outbound:\n    - port: any\n      proto: any\n      host: any\n  inbound:\n    - port: any\n      proto: icmp\n      "+who+"\n    - port: any\n      proto: tcp\n      "+who+"\n";
   let _x = fs::write(&f2, &s).unwrap();
   config.put_string("yaml", &s);
 

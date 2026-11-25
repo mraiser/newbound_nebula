@@ -178,6 +178,7 @@
 .ph-qrbox { position: relative; display: flex; justify-content: center; align-items: center; padding: 6px 0; }
 /* a QR needs dark modules on a light quiet zone to scan: plain black on white, not theme tokens */
 .ph-qr svg { display: block; max-width: 100%; max-height: min(560px, max(360px, calc(88vh - 290px)));  /* never so small a phone camera can't read it */ width: auto; height: auto; }
+.certdlg .ph-qr svg { max-height: max(300px, calc(88vh - 420px)); }   /* room for the by-hand box */
 .ph-qr.blurred { filter: blur(14px); opacity: 0.6; pointer-events: none; user-select: none; }
 .ph-show { position: absolute; }
 .ph-actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -185,6 +186,19 @@
 .ph-fix { display: flex; gap: 8px; }
 .nb-badge { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 1px 6px; margin-left: 6px;
   border-radius: 8px; border: 1px solid var(--accent-dim); color: var(--accent); vertical-align: 1px; }
+/* Members (Phase 3) */
+.nb-table td.when { font-family: var(--mono); font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.nb-table td.when.soon { color: var(--accent); }
+.blockedbox { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.blockedlist .nb-table td { color: var(--text-dim); }
+.blockedlist .fp { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+/* Add a phone: B2 (the phone's own key) */
+.ph-modeswitch { align-self: flex-start; padding: 0; color: var(--accent); font-size: 13px; cursor: pointer; background: none; border: 0; }
+.ph-modeswitch:hover { text-decoration: underline; }
+.ph-pub { box-sizing: border-box; width: 100%; min-height: 96px; padding: 8px 9px; font: 12px/1.5 var(--mono); color: var(--text);
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; resize: vertical; }
+.ph-dnn { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); }
+.ph-dnn .ph-actions { margin-top: 2px; }
 .nb-offscreen { position: fixed; left: -9999px; top: 0; opacity: 0; }
 
 /* a switch inside the config form lays out in a row, not the label column */

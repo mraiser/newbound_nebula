@@ -60,6 +60,17 @@ let home = root.join("networks").join(&servicename);
 let homestr = home.canonicalize().unwrap().into_os_string().into_string().unwrap();
 let bin = root.join("bin");
 
+// Networks with the member firewall (ENROLLMENT §5) only accept group
+// `member` inbound, so every Newbound member gets it.
+let mut groups = groups;
+if let Ok(s) = fs::read_to_string(home.join("connection.json")) {
+  let conn = DataObject::from_string(&s);
+  if conn.has("firewall") && conn.get_string("firewall") == "member"
+     && !groups.split(',').any(|g| g.trim() == "member") {
+    groups = if groups.trim().is_empty() { "member".to_string() } else { format!("member,{}", groups.trim()) };
+  }
+}
+
 let memberhome = home.join("members").join(&peer);
 let _x = fs::create_dir_all(&memberhome);
 let memberstr = memberhome.canonicalize().unwrap().into_os_string().into_string().unwrap();

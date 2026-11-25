@@ -78,6 +78,7 @@
         <div><span class="lbl">owner</span> <span class="networkowner"></span>
           <span class="joined-note" hidden>&mdash; you joined this network; members are managed on the owner's instance</span></div>
         <div class="expiryline" hidden><span class="lbl">expires</span> <span class="certexpiry"></span></div>
+        <div class="fwline" hidden><span class="lbl">inbound</span> <span class="fwmode"></span></div>
       </div>
       <div class="nb-hint loopback-hint" hidden></div>
       <div class="nb-row nb-runrow">
@@ -140,6 +141,13 @@
         <a href="../peer/index.html">Peers app</a> first.
       </div>
       <div class="memberlist"></div>
+      <div class="blockedbox" hidden>
+        <div class="lbl">removed &mdash; certificates blocked</div>
+        <div class="nb-hint">These members were removed. Their certificates are on this network&rsquo;s blocklist, which
+          this host and every Newbound member refuse (Sync mesh resends it to members that were offline).
+          Phones don&rsquo;t receive the list, but they reach the network through its lighthouses, which refuse a removed phone.</div>
+        <div class="blockedlist"></div>
+      </div>
     </section>
 
     <section class="nb-tabpane pane-adv" hidden>

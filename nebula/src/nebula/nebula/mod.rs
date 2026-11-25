@@ -1,5 +1,7 @@
 // This file is auto-generated and managed by the flowlang build script.
 use flowlang::rustcmd::Transform;
+pub mod set_firewall;
+pub mod update_blocklist;
 pub mod add_phone;
 pub mod port_status;
 pub mod update_hosts;
@@ -47,4 +49,6 @@ pub fn cmdinit(cmds: &mut Vec<(String, Transform, String)>) {
     cmds.push(("rrpqpp1a03e2baf27y1".to_string(), update_hosts::execute, "".to_string()));
     cmds.push(("ouiwvt1a212cf9227z1".to_string(), port_status::execute, "".to_string()));
     cmds.push(("qrxkvt1a2138dd957y1".to_string(), add_phone::execute, "".to_string()));
+    cmds.push(("lzziyn1a213f02582h1".to_string(), update_blocklist::execute, "".to_string()));
+    cmds.push(("pmwpky1a213f029b0x1".to_string(), set_firewall::execute, "".to_string()));
 }

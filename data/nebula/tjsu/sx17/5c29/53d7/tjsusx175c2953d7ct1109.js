@@ -535,6 +535,7 @@ function renderServicePane(n){
   $(ME).find('.f-ipaddr').val(c.ip_address || '');
   $(ME).find('.f-groups').val(c.groups || '');
   renderExpiry(n);
+  renderFirewall(n);
   renderRunHelp(n);
   renderLoopback();
 }
@@ -704,6 +705,7 @@ function loadMembers(){
 }
 
 function renderMembers(){
+  renderBlocked();
   var box = $(ME).find('.memberlist').empty();
   var nopeers = connectedPeers().length == 0;
   if (nopeers) $(ME).find('.nopeers-hint').removeAttr('hidden');
@@ -712,7 +714,7 @@ function renderMembers(){
   else $(ME).find('.addmemberbutton').removeAttr('disabled');
   var ids = Object.keys(S.members);
   if (!ids.length){ box.append($('<div class="nb-empty">No members yet.</div>')); return; }
-  var t = $('<table class="nb-table"><thead><tr><th>Member</th><th>Private IP</th><th>Groups</th><th></th></tr></thead><tbody></tbody></table>');
+  var t = $('<table class="nb-table"><thead><tr><th>Member</th><th>Private IP</th><th>Groups</th><th>Added</th><th>Expires</th><th></th></tr></thead><tbody></tbody></table>');
   var tb = t.find('tbody');
   for (var i in ids){
     (function(id){
@@ -720,22 +722,74 @@ function renderMembers(){
       var tr = $('<tr></tr>');
       var who = $('<div></div>').text(m.name || peerName(id));
       if (m.kind == 'phone') who.append($('<span class="nb-badge">phone</span>'));
-      var sub = m.kind == 'phone' && m.added ? 'added ' + fmtDate(new Date(m.added * 1000)) : id;
+      var sub = m.kind == 'phone' ? (m.mode == 'b2' ? 'phone made its own key' : 'key made by Newbound') : id;
       tr.append($('<td></td>').append(who, $('<div class="peerid"></div>').text(sub)));
       tr.append($('<td></td>').text(m.ip_address || ''));
       tr.append($('<td></td>').text(m.groups || ''));
-      tr.append($('<td></td>').append($('<button class="rowbtn danger">remove</button>').click(function(){
-        if (!confirm('Remove ' + (m.name || peerName(id)) + ' from ' + S.selected + '?\n\nIts issued certificate stays valid until it expires or the CA is rotated — removal only stops future re-issue.')) return;
-        send_remove_member(S.selected, id, function(result){
-          var o = outcome(result);
-          status(o.ok ? 'Member removed. The certificate remains valid until expiry or CA rotation.' : o.msg, o.ok ? 'ok' : 'err');
-          loadMembers();
-        }, S.peer);
-      })));
+      tr.append($('<td class="when"></td>').text(m.added ? fmtDate(new Date(m.added * 1000)) : '\u2014'));
+      var exp = m.not_after ? new Date(m.not_after) : null;
+      var soon = exp && !isNaN(exp) && (exp - Date.now()) < 30 * 86400000;
+      tr.append($('<td class="when"></td>').toggleClass('soon', !!soon).text(exp && !isNaN(exp) ? fmtDate(exp) : '\u2014'));
+      tr.append($('<td></td>').append($('<button class="rowbtn danger">remove</button>').click(function(){ removeMember(id, m); })));
       tb.append(tr);
     })(ids[i]);
   }
   box.append(t);
+}
+
+// ---- Remove (ENROLLMENT §4): block the cert here, then on every member ----
+function removeMember(id, m){
+  var name = m.name || peerName(id);
+  if (!confirm('Remove ' + name + ' from ' + S.selected + '?\n\nIts certificate goes on this network\u2019s blocklist: this host and every Newbound member will refuse it' +
+      (m.kind == 'phone' ? ', and the phone can no longer connect' : '') + '. This can\u2019t be undone \u2014 to bring it back, add it again.')) return;
+  var net = S.selected;
+  status('Removing ' + name + '\u2026', 'busy');
+  send_remove_member(net, id, function(result){
+    var o = outcome(result);
+    if (!o.ok){ status(o.msg, 'err'); loadMembers(); return; }
+    var bl = result.data.blocklist || {};
+    if (S.networks[net]) S.networks[net].config.blocklist = bl;
+    var peers = Object.keys(S.members).filter(function(k){ return k != id && S.members[k].kind != 'phone'; });
+    pushPolicy(net, peers, function(failures){
+      var head = result.data.msg;
+      if (!peers.length) status(head, result.data.fingerprint ? 'ok' : 'err');
+      else if (failures.length) status(head + ' Not yet blocked on: ' + failures.join('; ') + '. Sync mesh resends it.', 'err');
+      else status(head + ' Also blocked on ' + peers.length + (peers.length == 1 ? ' member.' : ' members.'), 'ok');
+      loadMembers();
+    });
+  }, S.peer);
+}
+
+// The network's policy for Newbound members: the blocklist (removed certs)
+// and, on networks made since Phase 3, the member-only inbound rules.
+// Sent on Remove and on every Sync mesh, so members that were offline catch up.
+function pushPolicy(net, peers, done){
+  var cfg = (S.networks[net] && S.networks[net].config) || {};
+  var bl = cfg.blocklist || {}, fw = cfg.firewall || '';
+  var jobs = [], failures = [];
+  peers.forEach(function(p){
+    if (Object.keys(bl).length) jobs.push(function(cb){ send_update_blocklist(net, bl, function(r){ var o = outcome(r); if (!o.ok) failures.push(peerName(p) + ' (' + o.msg + ')'); cb(); }, p); });
+    if (fw) jobs.push(function(cb){ send_set_firewall(net, fw, function(r){ var o = outcome(r); if (!o.ok) failures.push(peerName(p) + ' (' + o.msg + ')'); cb(); }, p); });
+  });
+  var n = jobs.length;
+  if (!n) return done(failures);
+  jobs.forEach(function(job){ job(function(){ if (--n == 0) done(failures); }); });
+}
+
+function renderBlocked(){
+  var bl = (S.networks[S.selected] && S.networks[S.selected].config.blocklist) || {};
+  var fps = Object.keys(bl), box = $(ME).find('.blockedbox');
+  if (!fps.length){ box.attr('hidden', true); return; }
+  var t = $('<table class="nb-table"><thead><tr><th>Name</th><th>Removed</th><th>Certificate fingerprint</th></tr></thead><tbody></tbody></table>');
+  fps.sort(function(a, b){ return (bl[b].removed || 0) - (bl[a].removed || 0); }).forEach(function(fp){
+    var e = bl[fp] || {};
+    t.find('tbody').append($('<tr></tr>').append(
+      $('<td></td>').text(e.name || '\u2014'),
+      $('<td class="when"></td>').text(e.removed ? fmtDate(new Date(e.removed * 1000)) : '\u2014'),
+      $('<td class="fp"></td>').text(fp.slice(0, 16) + '\u2026')));
+  });
+  box.find('.blockedlist').empty().append(t);
+  box.removeAttr('hidden');
 }
 
 // Propose the lowest free host number, checking members, lighthouses, and this host.
@@ -790,10 +844,14 @@ function syncMesh(quiet){
     var pending2 = ids.length + 1;
     function pushed(){
       if (--pending2 > 0) return;
-      busy('.syncmeshbutton', false);
-      if (failures.length) status('Mesh synced with problems: ' + failures.join('; '), 'err');
-      else if (!quiet) status('Mesh synced across ' + (ids.length + 1) + ' hosts — members reach each other without a public lighthouse.', 'ok');
-      refreshNetworkPage();
+      // then the blocklist and firewall mode, so offline members catch up
+      pushPolicy(name, ids, function(pf){
+        busy('.syncmeshbutton', false);
+        failures = failures.concat(pf);
+        if (failures.length) status('Mesh synced with problems: ' + failures.join('; '), 'err');
+        else if (!quiet) status('Mesh synced across ' + (ids.length + 1) + ' hosts — members reach each other without a public lighthouse.', 'ok');
+        refreshNetworkPage();
+      });
     }
     for (var k in ids){
       (function(id){
@@ -1004,14 +1062,27 @@ function phoneStep1(err, fix){
     '<div class="nbdlg-body">' +
       '<label><span class="lbl">phone name</span><input type="text" class="ph-name" maxlength="64" placeholder="e.g. Alex’s iPhone"></label>' +
       '<label><span class="lbl">extra groups (optional)</span><input type="text" class="ph-groups" placeholder="Comma separated — member and phone are always added"></label>' +
+      '<label class="ph-publabel" hidden><span class="lbl">the phone\u2019s public key</span><textarea class="ph-pub" spellcheck="false" placeholder="-----BEGIN NEBULA X25519 PUBLIC KEY-----&#10;…&#10;-----END NEBULA X25519 PUBLIC KEY-----"></textarea></label>' +
       '<div class="nb-hint ph-explain"></div>' +
+      '<button type="button" class="ph-modeswitch"></button>' +
       '<div class="nbdlg-err" hidden></div>' +
       '<div class="ph-fix" hidden></div>' +
     '</div>' +
     '<div class="nbdlg-foot"><button class="btn ph-cancel">Cancel</button><button class="btn btn-primary ph-make">Make join code</button></div>' +
   '</div>');
-  d.find('.ph-explain').text('Newbound makes the phone’s key and puts everything in one QR code. Anyone who sees the code can join ' +
-    S.selected + ' as this phone, so show it only to the phone. The code disappears after 10 minutes.');
+  // Mode A (default): Newbound makes the key. B2: the phone made its own and
+  // only its public key comes here (ENROLLMENT §3.2).
+  function setMode(b2){
+    d.data('b2', b2);
+    if (!b2) d.find('.ph-publabel').attr('hidden', true); else d.find('.ph-publabel').removeAttr('hidden');
+    d.find('.ph-make').text(b2 ? 'Sign the key' : 'Make join code');
+    d.find('.ph-modeswitch').text(b2 ? 'Let Newbound make the key instead (one scan)' : 'The phone made its own key? Paste its public key');
+    d.find('.ph-explain').text(b2
+      ? 'Stricter: the phone\u2019s private key never leaves the phone. Paste the public key it shows; Newbound signs it and gives back a code with the certificate (nothing secret in it).'
+      : 'Newbound makes the phone\u2019s key and puts everything in one QR code. Anyone who sees the code can join ' + S.selected + ' as this phone, so show it only to the phone. The code disappears after 10 minutes.');
+  }
+  d.find('.ph-modeswitch').click(function(){ setMode(!d.data('b2')); });
+  setMode(false);
   d.find('.nbdlg-x, .ph-cancel').click(closeModal);
   d.find('.ph-make').click(makePhone);
   d.find('.ph-name').on('keydown', function(e){ if (e.key == 'Enter') makePhone(); });
@@ -1039,11 +1110,14 @@ function makePhone(){
   var card = $(ME).find('.popmeup');
   var name = (card.find('.ph-name').val() || '').trim();
   var groups = (card.find('.ph-groups').val() || '').trim();
+  var b2 = !!card.find('.phonedlg').data('b2');
+  var pub = b2 ? (card.find('.ph-pub').val() || '').trim() : '';
   if (!name) return phoneErr('Give the phone a name first.');
+  if (b2 && !pub) return phoneErr('Paste the public key the phone shows.');
   if (S.dirty) return phoneErr('Save your changes first — the phone gets the saved lighthouses.', { label: 'Save configuration', go: saveConfig });
   card.find('.nbdlg-err').attr('hidden', true);
   busy('.ph-make', true);
-  send_add_phone(S.selected, name, groups, function(result){
+  send_add_phone(S.selected, name, groups, pub, function(result){
     busy('.ph-make', false);
     var o = outcome(result);
     if (!o.ok){
@@ -1057,6 +1131,15 @@ function makePhone(){
       return phoneErr(o.msg, fix);
     }
     var j = result.data.join;
+    if (j.kind == 'cert'){
+      // B2: nothing secret, so no blur and no countdown
+      PHONE = { join: j, deadline: null };
+      return joinURL(j).then(function(url){
+        if (!PHONE) return;
+        PHONE.url = url;
+        loadQR(function(err){ if (PHONE) certStep(err); });
+      }, function(e){ phoneErr(e.message); });
+    }
     // count down from now, not from the server clock
     PHONE = { join: j, deadline: Date.now() + (j.expires - j.created) * 1000 };
     joinURL(j).then(function(url){
@@ -1114,4 +1197,51 @@ function phoneStep2(qrErr){
   tick();
 }
 
+// B2 result: the `cert` code (Mode A fields minus the key, plus
+// pubkey_fingerprint). Also the plain PEMs, for apps that take them by hand
+// (Defined Networking's Mobile Nebula: paste the certificate and the CA).
+function certStep(qrErr){
+  var j = PHONE.join, url = PHONE.url;
+  var card = $(ME).find('.popmeup').empty();
+  var d = $('<div class="nbdlg phonedlg certdlg">' +
+    '<div class="nbdlg-head"><span class="nbdlg-title">Phone key signed</span><button class="nbdlg-x" title="Close">&#10005;</button></div>' +
+    '<div class="nbdlg-body">' +
+      '<div class="ph-meta"></div>' +
+      '<div class="ph-qrbox"><div class="ph-qr"></div></div>' +
+      '<div class="ph-actions">' +
+        '<button class="btn ph-dl">Download .nbjoin</button>' +
+        '<button class="btn ph-copy">Copy link</button>' +
+      '</div>' +
+      '<div class="nb-hint">nebula mobile: scan this or open the link on the phone that made the key. Nothing in it is secret.</div>' +
+      '<div class="ph-dnn">' +
+        '<div class="lbl">Defined Networking\u2019s Mobile Nebula, by hand</div>' +
+        '<div class="nb-hint ph-dnnhint"></div>' +
+        '<div class="ph-actions"><button class="btn ph-copycert">Copy certificate</button><button class="btn ph-copyca">Copy CA</button></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="nbdlg-foot"><button class="btn btn-primary ph-done">Done</button></div>' +
+  '</div>');
+  d.find('.ph-meta').append($('<b></b>').text(j.device_name), document.createTextNode(' \u00b7 ' + j.ip.split('/')[0] + ' on ' + j.network + ' \u00b7 key fingerprint ' + j.pubkey_fingerprint.slice(0, 12) + '\u2026'));
+  var lh = (j.lighthouses || []).map(function(l){ return l.nebula_ip + ' \u2192 ' + l.addrs.join(', '); }).join('; ');
+  d.find('.ph-dnnhint').text('Paste the certificate and the CA into the site you made the key in, and add the lighthouse ' + lh + '.');
+  if (qrErr) d.find('.ph-qrbox').empty().append($('<div class="ph-expired"></div>').text(qrErr + ' Use the file or the link instead.'));
+  else d.find('.ph-qr').html(qrSVG(url));
+  d.find('.ph-dl').click(function(){ download(j.network + '-' + slug(j.device_name) + '.nbjoin', url + '\n', 'application/octet-stream'); });
+  d.find('.ph-copy').click(function(){ copyText(url, $(this)); });
+  d.find('.ph-copycert').click(function(){ copyText(j.cert, $(this)); });
+  d.find('.ph-copyca').click(function(){ copyText(j.ca, $(this)); });
+  d.find('.nbdlg-x, .ph-done').click(closeModal);
+  card.append(d);
+}
+
 $(ME).find('.addphonebutton').click(function(){ phoneStep1(); });
+
+// ---- inbound rule of the open network (ENROLLMENT §5) ----
+function renderFirewall(n){
+  var c = n.config || {};
+  var el = $(ME).find('.fwline');
+  if (n.owner != 'local' && !c.firewall){ el.attr('hidden', true); return; }
+  el.removeAttr('hidden').find('.fwmode').text(c.firewall == 'member'
+    ? 'members only (certificates in group member)'
+    : 'any certificate from this network\u2019s CA (made before member-only rules)');
+}

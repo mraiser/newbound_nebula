@@ -10,6 +10,20 @@ let certbin = root.join("bin").join("nebula-cert");
 let device_name = device_name.trim().to_string();
 if device_name.is_empty() { return nb_err("Give the phone a name first.", "bad_name"); }
 if device_name.chars().count() > 64 { return nb_err("Keep the phone's name under 64 characters.", "bad_name"); }
+// Mode B2 (ENROLLMENT §3.2): the phone made its own keypair and sent only
+// its public key. Check it before anything is recorded.
+let pubkey = pubkey.trim().replace("\r", "");
+let b2 = !pubkey.is_empty();
+let mut pubkey_fingerprint = String::new();
+if b2 {
+  let begin = "-----BEGIN NEBULA X25519 PUBLIC KEY-----";
+  let end = "-----END NEBULA X25519 PUBLIC KEY-----";
+  let (bi, ei) = match (pubkey.find(begin), pubkey.find(end)) { (Some(b), Some(e)) if e > b => (b, e), _ =>
+    return nb_err("That isn't a nebula public key. Paste the whole block, from -----BEGIN NEBULA X25519 PUBLIC KEY----- to the END line.", "bad_pubkey") };
+  let raw = match nb_b64_decode(&pubkey[bi + begin.len()..ei]) { Some(r) if r.len() == 32 => r, _ =>
+    return nb_err("That public key is damaged (it should hold 32 bytes). Copy it again from the phone.", "bad_pubkey") };
+  pubkey_fingerprint = nb_sha256_hex(&raw);
+}
 if !home.join("ca.key").exists() { return nb_err("Only the instance that owns this network can add phones.", "not_owner"); }
 if !certbin.exists() { return nb_err("Install the nebula engine first.", "no_engine"); }
 
@@ -104,16 +118,22 @@ let _ = fs::remove_dir_all(&tmp);
 if let Err(e) = fs::create_dir_all(&tmp) { return nb_err(&format!("Couldn't create a temporary folder: {}", e), "io"); }
 #[cfg(unix)]
 { use std::os::unix::fs::PermissionsExt; let _ = fs::set_permissions(&tmp, fs::Permissions::from_mode(0o700)); }
-let out = std::process::Command::new(&certbin)
-  .args(["sign", "-ca-crt", &home.join("ca.crt").display().to_string(), "-ca-key", &home.join("ca.key").display().to_string(),
-         "-name", &device_name, "-ip", &ip_cidr, "-groups", &gl.join(","),
-         "-out-crt", &tmp.join("host.crt").display().to_string(), "-out-key", &tmp.join("host.key").display().to_string()])
-  .output();
+let mut args: Vec<String> = vec!["sign".into(), "-ca-crt".into(), home.join("ca.crt").display().to_string(),
+  "-ca-key".into(), home.join("ca.key").display().to_string(), "-name".into(), device_name.clone(), "-ip".into(), ip_cidr.clone(),
+  "-groups".into(), gl.join(","), "-out-crt".into(), tmp.join("host.crt").display().to_string()];
+if b2 {
+  // sign the phone's own public key: no private key is made here at all
+  let _ = fs::write(tmp.join("host.pub"), format!("{}\n", pubkey));
+  args.push("-in-pub".into()); args.push(tmp.join("host.pub").display().to_string());
+} else {
+  args.push("-out-key".into()); args.push(tmp.join("host.key").display().to_string());
+}
+let out = std::process::Command::new(&certbin).args(&args).output();
 let key = fs::read_to_string(tmp.join("host.key")).unwrap_or_default();
 let crt = fs::read_to_string(tmp.join("host.crt")).unwrap_or_default();
 let _ = fs::remove_dir_all(&tmp);
 let ok = match &out { Ok(o) => o.status.success(), Err(_) => false };
-if !ok || key.is_empty() || crt.is_empty() {
+if !ok || (!b2 && key.is_empty()) || crt.is_empty() {
   let why = match out { Ok(o) => String::from_utf8_lossy(&o.stderr).trim().to_string(), Err(e) => e.to_string() };
   return nb_err(&format!("nebula-cert couldn't sign the phone's certificate: {}", why), "sign_failed");
 }
@@ -126,6 +146,7 @@ let not_after = nb_cert_json_str(&certbin, &mhome.join("host.crt"), "notAfter");
 let fingerprint = nb_cert_json_str(&certbin, &mhome.join("host.crt"), "fingerprint");
 let mut info = DataObject::new();
 info.put_string("kind", "phone");
+info.put_string("mode", if b2 { "b2" } else { "a" });
 info.put_string("name", &device_name);
 info.put_string("ip_address", &ip_cidr);
 info.put_string("groups", &gl.join(","));
@@ -174,7 +195,7 @@ if owner_id.is_empty() {
 // The Mode A payload, field for field as ENROLLMENT.md §1.2 + §2.
 let mut j = DataObject::new();
 j.put_int("v", 1);
-j.put_string("kind", "join");
+j.put_string("kind", if b2 { "cert" } else { "join" });
 j.put_string("network", &servicename);
 j.put_string("ca_fingerprint", &nb_cert_json_str(&certbin, &home.join("ca.crt"), "fingerprint"));
 let mut owner = DataObject::new();
@@ -203,7 +224,9 @@ for g in &gl { ga.push_string(g); }
 j.put_array("groups", ga);
 j.put_string("ca", &fs::read_to_string(home.join("ca.crt")).unwrap_or_default());
 j.put_string("cert", &crt);
-j.put_string("key", &key);
+// Mode A carries the key (secret); B2's cert code never does, and says
+// which public key it was signed for instead.
+if b2 { j.put_string("pubkey_fingerprint", &pubkey_fingerprint); } else { j.put_string("key", &key); }
 j.put_int("expires", created + 600);
 
 let mut o = DataObject::new();
