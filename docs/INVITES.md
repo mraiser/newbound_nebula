@@ -1,5 +1,11 @@
 # Invites over home Wi-Fi (Mode B1): design and questions for Marc
 
+> **Decided by Alex, 2026-11-25:** anonymous commands are fine (Newbound allows
+> them by design, and Marc knows); B1 **uses the approval tap**; the contract now
+> says answers come in Newbound's `{status, data}` envelope, with a `waiting` state and
+> `invite_status` polling (newbound-mobile branch `contract/b1-envelope-approval`).
+> Still Marc's: questions 2, 4 and 5 below.
+
 **TL;DR.** B1 lets a phone join with one scan, **without its private key ever
 leaving the phone**. The phone scans an invite QR, makes its own key, and
 sends only the public key to Newbound over the home network. Newbound checks
@@ -58,17 +64,22 @@ nebula app already ships Mode A (one scan, Newbound makes the key) and Mode B2
 
 **UI:** a third choice in Add a phone, next to "paste its public key". It shows the invite QR, a countdown, and "Waiting for the phone…", which turns into "Alex's iPhone joined" when the token is spent (the page polls a new admin-only `invite_status`).
 
-**Optional approval tap (recommended, question 3):** `redeem_invite` doesn't sign straight away. It answers `{"status":"waiting"}`, and the owner's page shows "Alex's iPhone sent a key ending **12ab 34cd** — the same as on the phone? [Approve]". The phone shows the same 8 hex characters of its key fingerprint and polls until approved. This makes LAN tampering visible, at the cost of one tap.
+**Approval tap (decided: Alex, 2026-11-25):**
+- `redeem_invite` doesn't sign straight away. It checks the token and key, stores the public key with the invite, and answers `data.status: "waiting"` plus the `pubkey_fingerprint`.
+- The owner's page (polling a new admin-only `invites(servicename)`) shows "Alex's iPhone sent a key ending **ab12 cd34** — the same as on the phone? [Approve] [Refuse]". The phone shows the same 8 hex characters.
+- **Approve** (admin-only `approve_invite(servicename, invite_id, approve)`) signs and records the phone. **Refuse** cancels the invite.
+- The phone polls the anonymous `invite_status(token)` every 2 s until `ok` or `err`.
+- A second `redeem_invite` with another key while one is waiting is refused, so a swapped key can't slip in unnoticed.
 
 ## 4. Questions for Marc
-1. **Anonymous command.** May the nebula app give `redeem_invite` readers `["anonymous"]`? The mechanism exists, so this is a policy choice. If yes: any rules for anonymous commands (logging, a shared rate limit, a naming convention)?
+1. ~~Anonymous command.~~ **Answered (Alex): by design.** `redeem_invite` and `invite_status` get readers `["anonymous"]`. Still welcome from Marc: any house rules for anonymous commands (logging, rate limit, naming).
 2. **Listening on the home network.** Should Newbound listen beyond 127.0.0.1 by default (`http_address=0.0.0.0`), or offer a "home network only" choice? Until it does, B1 can't work on an instance like Eyevea's, and the app says so.
 3. **Plain HTTP.** On the same Wi-Fi, someone who can intercept traffic could swap in their own public key and join **as that phone**. The phone would see an error, but the attacker would be in. The CA itself can't be faked, because the phone checks it against the fingerprint in the QR. Options:
    - **(a)** accept it for v1: single use, 10 minutes, home Wi-Fi only;
    - **(b)** add the approval tap above;
    - **(c)** wait for HTTPS.
 
-   Recommendation: **(b)**.
+   **Answered (Alex): (b), the approval tap.**
 4. **Caller IP.** Can a command learn the caller's address (for example a `nn_remote` param)? Then `redeem_invite` could refuse anything that isn't a private/LAN address, so a port forward to Newbound's web port could never expose it.
 5. **Random bytes.** std has no secure random source and the app takes no crates. Options:
    - read the OS source directly (`/dev/urandom` on Linux/macOS/Pi; Windows needs an OS call);
@@ -76,12 +87,11 @@ nebula app already ships Mode A (one scan, Newbound makes the key) and Mode B2
    - flowlang exposes a CSPRNG helper.
 
    Which do you prefer?
-6. **Answer envelope.** `redeem_invite`'s answer arrives inside Newbound's standard envelope (`status` + `data`, HTTP 200 even when refused). The contract shows the fields at the top level. I propose changing the contract (readers take `data`; the outer `status` is transport, `data.status` is the verdict) rather than adding a raw-response mode to the platform. OK?
+6. ~~Answer envelope.~~ **Answered (Alex):** the contract changes. Phones read `data`; the outer `status` is transport, `data.status` is the verdict.
 
-## 5. Proposed contract changes (for Alex; not applied to ENROLLMENT.md)
-- **§3.1 answer:** the `redeem_invite` reply comes in Newbound's command envelope: `{"status":"ok","data":{"status":"ok"|"err"|"waiting", …}}`, and the phone reads `data`. A refusal is HTTP 200 with `status: "err"`.
-- **§3.1 approval (if Marc picks 3b):** a `waiting` state, plus `GET`/`POST /nebula/invite_status {token}` for the phone to poll. The phone shows its key fingerprint's first 8 hex characters.
-- **§3.2 (from Phase 3):** `pubkey_fingerprint` = SHA-256, lowercase hex, of the raw 32-byte X25519 public key (the decoded base64 body of the PEM).
+## 5. Contract changes
+- **Applied (Alex approved):** §3.1 answers in Newbound's envelope (`data.status` = `waiting` / `ok` / `err`), the approval tap, and `POST /nebula/invite_status {token}` polling. They're on newbound-mobile branch `contract/b1-envelope-approval`.
+- **Still proposed** (in the contract's "Proposed changes", for the nebula mobile builders): `pubkey_fingerprint` = SHA-256, lowercase hex, of the raw 32-byte X25519 public key.
 
 ## 6. What's built now
 Only the disabled entry point. In **Add a phone**, "Invite over home Wi-Fi" is shown disabled with one line: it needs a platform decision, use "paste its public key" for now. When the instance listens only on loopback it also says "Newbound isn't reachable on your network". No token, command or listener exists.
