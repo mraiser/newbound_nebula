@@ -1,0 +1,44 @@
+PASS logged out: all 25 nebula commands refuse (UNAUTHORIZED)
+PASS info: tun block has os/arch/how
+PASS info: tun.ready reported on Linux (getcap present)
+PASS info: http_address reported
+PASS port_status: a bound port reads bound
+PASS port_status: the same port reads free once released
+PASS port_status: a non-number is refused in words
+PASS create_network: CA lasts ~10 years
+PASS create_network: this host cert in group member
+PASS create_network: firewall=member recorded
+PASS create_network: inbound rules are groups [member]
+PASS create_network: nebula -test accepts the config
+PASS add_phone: no lighthouse -> refused with reason no_lighthouse
+PASS add_phone: empty name refused
+PASS add_phone: bad group refused
+PASS Mode A: kind join with key
+PASS Mode A: public address gets the network port
+PASS Mode A: groups member,phone,family
+PASS Mode A: expires = created + 600
+PASS Mode A: owner + newbound_url filled
+PASS Mode A: member folder holds only host.crt + info.json
+PASS Mode A: no temp folder left
+PASS Mode A: cert verifies against the CA
+PASS Mode A: ca_fingerprint matches
+PASS B2: kind cert, no key
+PASS B2: pubkey_fingerprint = SHA-256 of the raw key
+PASS B2: cert holds the phone public key
+PASS B2: damaged key refused in words
+PASS members: both phones listed with added/not_after/fingerprint
+PASS members: modes recorded (a, b2)
+PASS add_member: member group added on member-firewall network
+PASS remove_member: ok with the fingerprint
+PASS remove_member: folder deleted
+PASS remove_member: config.yml blocklists it
+PASS remove_member: nebula -test accepts the blocklist
+PASS remove_member: unknown member refused
+PASS update_blocklist: refuses a non-fingerprint
+PASS set_firewall: refuses an unknown mode
+PASS older networks re-render byte-identical (t-after,t-before)
+PASS start: runs (engine has its permission)
+PASS info: t-qa running (supervised)
+PASS stop: stops it
+
+42 checks, 0 failed

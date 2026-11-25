@@ -201,6 +201,11 @@
   background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; resize: vertical; }
 .ph-dnn { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); }
 .ph-dnn .ph-actions { margin-top: 2px; }
+/* ufw hint (Phase 5 QA): collapsed, since the rules may already exist */
+.fwhint { max-width: 760px; }   /* no flex on <details>: summary misbehaves in some browsers */
+.fwhint summary { cursor: pointer; color: var(--text-dim); font-size: 13px; }
+.fwhint summary:hover { color: var(--text); }
+.fwhint > * + * { margin-top: 8px; }
 .nb-offscreen { position: fixed; left: -9999px; top: 0; opacity: 0; }
 
 /* a switch inside the config form lays out in a row, not the label column */

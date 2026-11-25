@@ -536,6 +536,7 @@ function renderServicePane(n){
   $(ME).find('.f-groups').val(c.groups || '');
   renderExpiry(n);
   renderFirewall(n);
+  renderUfw(n);
   renderRunHelp(n);
   renderLoopback();
 }
@@ -1239,6 +1240,23 @@ function certStep(qrErr){
 }
 
 $(ME).find('.addphonebutton').click(function(){ phoneStep1(); });
+
+// ---- ufw on Linux (Phase 5 QA): a phone can join and still be blocked ----
+function renderUfw(n){
+  var el = $(ME).find('.fwhint'), c = n.config || {};
+  if (!(S.info && S.info.ufw) || !c.port){ el.attr('hidden', true); return; }
+  var net = n.name, port = S.info.http_port;
+  el.find('.fwhint-how').text('The app can\u2019t read the rules without sudo. If a phone joins ' + net +
+    ' but can\u2019t connect, or connects but can\u2019t open Newbound, these open exactly what\u2019s needed: the tunnel\u2019s UDP port, and Newbound\u2019s web port only on the ' + net + ' interface.');
+  el.find('.fw-cmd1').text('sudo ufw allow ' + c.port + '/udp comment \'nebula ' + net + '\'');
+  if (port && !isLoopback(S.info.http_address)){
+    el.find('.fw-web').removeAttr('hidden');
+    el.find('.fw-cmd2').text('sudo ufw allow in on ' + net + ' to any port ' + port + ' proto tcp comment \'newbound over ' + net + '\'');
+  } else el.find('.fw-web').attr('hidden', true);
+  el.removeAttr('hidden');
+}
+$(ME).find('.copyfw1').click(function(){ copyText($(ME).find('.fw-cmd1').text(), $(this)); });
+$(ME).find('.copyfw2').click(function(){ copyText($(ME).find('.fw-cmd2').text(), $(this)); });
 
 // ---- inbound rule of the open network (ENROLLMENT §5) ----
 function renderFirewall(n){

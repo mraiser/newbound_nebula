@@ -128,3 +128,12 @@ the worktree through the symlinks:
   `sudo ufw status numbered` and then `sudo ufw delete <n>`.
 - Scratch's engine copy has `cap_net_admin` since 2026-11-25. It's lost
   whenever the engine is reinstalled.
+
+## Stopping scratch safely
+Never use `pkill`/`killall` by name: live and scratch run the same binary
+name. Stop scratch only by the PID that owns port 33182 **and** has
+`/home/gm/Desktop/newbound-scratch` as its working directory:
+```
+P=$(ss -ltnp | grep ':33182 ' | grep -o 'pid=[0-9]*' | cut -d= -f2)
+[ "$(readlink /proc/$P/cwd)" = /home/gm/Desktop/newbound-scratch ] && kill $P
+```

@@ -165,6 +165,40 @@ if http_address.is_empty() {
 }
 jo.put_string("http_address", &http_address);
 
+// Newbound's own port, for the firewall hint below and for phones
+let mut http_port = String::new();
+if g0.has("system") {
+  let system = g0.get_object("system");
+  if system.has("config") {
+    let c = system.get_object("config");
+    if c.has("http_port") { http_port = ndata::data::Data::as_string(c.get_property("http_port")); }
+  }
+}
+if http_port.is_empty() {
+  let cp = nbdir.join("config.properties");
+  if cp.exists() {
+    let p = read_properties(cp.display().to_string());
+    if p.has("http_port") { http_port = p.get_string("http_port"); }
+  }
+}
+jo.put_string("http_port", &http_port);
+
+// Linux + ufw (QA, Phase 5): with ufw on (default inbound DROP), a phone can
+// join the tunnel and still not reach Newbound or the lighthouse port. Rules
+// can't be read without root, so the page only says ufw is on and shows the
+// exact allow rules. Other OS firewalls: not detected (said in the UI).
+let mut ufw = false;
+if std::env::consts::OS == "linux" {
+  if let Ok(s) = fs::read_to_string("/etc/ufw/ufw.conf") {
+    if s.lines().any(|l| l.trim() == "ENABLED=yes") {
+      let active = std::process::Command::new("systemctl").args(["is-active", "ufw"]).output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "active").unwrap_or(true);
+      ufw = active;
+    }
+  }
+}
+jo.put_boolean("ufw", ufw);
+
 // networks named in the start= key of botd.properties auto-start at boot
 let mut bootlist: Vec<String> = Vec::new();
 let bp = root.join("botd.properties");
