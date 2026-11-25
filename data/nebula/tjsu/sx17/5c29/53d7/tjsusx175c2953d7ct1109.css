@@ -1,6 +1,9 @@
 /* Nebula app — kit dialect (app.tokens contract v1). Layout only:
    every color and type role comes from the tokens. */
 
+/* one control height for buttons, selects and text inputs, so every row
+   shares a baseline and edge (#13) */
+.nb-app { --nb-ctl-h: 32px; }
 .nb-app { display: flex; flex-direction: column; height: 100vh; background: var(--ground); color: var(--text); }
 .nb-app .mono { font-family: var(--mono); }
 
@@ -8,6 +11,11 @@
 .nb-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--line); }
 .nb-home { color: var(--text-dim); text-decoration: none; font-size: 18px; }
 .nb-home:hover { color: var(--accent); }
+/* back: the Dev editors' pattern (fe-back) - top-left, before the title */
+.nb-back { font: 12px var(--mono); color: var(--text-dim); border: 1px solid var(--line); border-radius: 8px;
+  padding: 0 10px; height: 28px; background: var(--ground); cursor: pointer; }
+.nb-back:hover { color: var(--accent); border-color: var(--accent-dim); }
+.nb-back:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .nb-title { font-family: var(--disp); font-size: 16px; letter-spacing: 0.06em; }
 .nb-crumb { color: var(--text-dim); }
 .nb-crumb b { color: var(--text); font-weight: 600; }
@@ -31,13 +39,23 @@
 .nb-row-between { justify-content: space-between; }
 .nb-hint { color: var(--text-dim); font-size: 13px; line-height: 1.5; }
 .nb-hint a { color: var(--accent); }
+/* keep prose readable on wide screens (same measure as the callout) */
+.nb-tabpane .nb-hint, .nb-panel .nb-hint { max-width: 760px; }
 
-/* buttons */
-.btn { padding: 6px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-2); color: var(--text); }
+/* buttons. Primary rests at the full accent, like the Applications shelf
+   (sh-primary) and Dev's Save (#12): it used to rest at --accent-dim, which
+   read as disabled. Hover only brightens it a little. A disabled button
+   looks like Dev's disabled Save (panel + dim text), not a faded accent. */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box;
+  height: var(--nb-ctl-h); padding: 0 12px; border: 1px solid var(--line); border-radius: 4px;
+  background: var(--panel-2); color: var(--text); white-space: nowrap; cursor: pointer; }
 .btn:hover { border-color: var(--accent-dim); }
-.btn-primary { background: var(--accent-dim); border-color: var(--accent-dim); color: var(--ground); font-weight: 600; }
-.btn-primary:hover { background: var(--accent); border-color: var(--accent); }
-.btn[disabled] { opacity: 0.5; cursor: default; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--ground); font-weight: 600; }
+.btn-primary:hover { background: var(--accent); border-color: var(--accent); filter: brightness(1.08); }
+.btn[disabled], .btn[disabled]:hover { background: var(--panel-2); border-color: var(--line); color: var(--text-faint);
+  font-weight: 400; filter: none; cursor: default; }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn kbd { font: 10px var(--mono); opacity: 0.75; }
 .btn-danger { color: var(--danger); }
 
 /* network list */
@@ -50,20 +68,25 @@
 .netrow .badge.owner { color: var(--accent); border-color: var(--accent-dim); }
 
 /* tabs */
-.nb-tabs { display: flex; gap: 2px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.nb-tabs { display: flex; align-items: center; gap: 2px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
 .nb-tab { padding: 10px 16px; color: var(--text-dim); border-bottom: 2px solid transparent; }
 .nb-tab:hover { color: var(--text); }
 .nb-tab.selected { color: var(--accent); border-bottom-color: var(--accent); }
 .nb-tabpane { display: flex; flex-direction: column; gap: 12px; padding: 16px; overflow-y: auto; flex: 1; }
 .networkpage { padding: 0; gap: 0; }
-.nb-foot { padding: 12px 16px; border-top: 1px solid var(--line); background: var(--panel); }
+/* Save lives at the right of the network's tab bar, like Dev's workbench
+   (wb-chipbar: facet tabs left, state + Save right) (#15) */
+.nb-tabactions { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.nb-dirty { font: 11px var(--mono); color: var(--text-dim); }
+.nb-dirty.dirty { color: var(--accent); }
 
 /* switches */
 .nb-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
 .nb-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .nb-slider { width: 34px; height: 18px; border-radius: 9px; background: var(--panel-3); border: 1px solid var(--line); position: relative; transition: background 0.15s; }
 .nb-slider::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--text-dim); transition: transform 0.15s, background 0.15s; }
-.nb-switch input:checked + .nb-slider { background: var(--accent-dim); }
+/* checked toggles at the full accent (#14), same reason as .btn-primary */
+.nb-switch input:checked + .nb-slider { background: var(--accent); border-color: var(--accent); }
 .nb-switch input:checked + .nb-slider::after { transform: translateX(16px); background: var(--ground); }
 .nb-switch input:focus-visible + .nb-slider { outline: 2px solid var(--accent); outline-offset: 2px; }
 .nb-switch.busy { opacity: 0.5; pointer-events: none; }
@@ -72,7 +95,7 @@
 .nb-form { display: flex; flex-direction: column; gap: 10px; max-width: 460px; }
 .nb-form label { display: flex; flex-direction: column; gap: 4px; }
 .nb-form input[type=text], .nb-form input[type=number], .nb-modal-card input[type=text], .nb-modal-card input[type=number] {
-  background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; color: var(--text); padding: 7px 9px; }
+  box-sizing: border-box; height: var(--nb-ctl-h); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; color: var(--text); padding: 0 9px; }
 .nb-form input[type=checkbox] { width: 16px; height: 16px; }
 .f-yaml { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; color: var(--text); padding: 8px; min-height: 220px; }
 
@@ -98,8 +121,9 @@
 .nbdlg-x:hover { color: var(--text); }
 .nbdlg-body { display: flex; flex-direction: column; gap: 10px; padding: 14px; min-width: 300px; }
 .nbdlg-body label { display: flex; flex-direction: column; gap: 4px; }
-.nbdlg-body input { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; color: var(--text); padding: 7px 9px; }
+.nbdlg-body input { box-sizing: border-box; height: var(--nb-ctl-h); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; color: var(--text); padding: 0 9px; }
 .nbdlg-err { color: var(--danger); font-size: 13px; }
+.nbdlg-warn { color: var(--accent); font-size: 13px; line-height: 1.45; }
 .nbdlg-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
 
 /* supervised tunnel row */
@@ -110,7 +134,43 @@
 .btn.svc-stopnow { color: var(--danger); }
 
 /* install-by-URL row */
-.engine-byurl .f-releaseurl { flex: 1; min-width: 260px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; color: var(--text); padding: 7px 9px; }
+.engine-byurl .f-releaseurl { flex: 1; min-width: 260px; box-sizing: border-box; height: var(--nb-ctl-h); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; color: var(--text); padding: 0 9px; }
+
+/* engine install row (#13): label above each select, and the selects and
+   Install share one bottom edge and one height */
+.engine-install { align-items: flex-end; }
+.nb-field { display: inline-flex; flex-direction: column; gap: 4px; }
+.nb-select { box-sizing: border-box; height: var(--nb-ctl-h); min-width: 120px; padding: 0 28px 0 9px; border: 1px solid var(--line);
+  border-radius: 4px; background-color: var(--panel-2); color: var(--text); color-scheme: dark; font: inherit; cursor: pointer;
+  appearance: none; -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-dim) 50%), linear-gradient(135deg, var(--text-dim) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
+.nb-select:hover { border-color: var(--accent-dim); }
+.nb-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.engine-install .updatemsg:empty { display: none; }
+.engine-install .updatemsg { align-self: center; }
+.nb-warn { color: var(--accent); font-size: 13px; line-height: 1.5; }
+
+/* network facts (owner, expiry) */
+.nb-facts { display: flex; flex-direction: column; gap: 6px; }
+
+/* Run now fix-it callout (#2): one sentence, the command, a Copy button;
+   the tunnel's raw output only under Details */
+.nb-callout { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--accent-dim);
+  border-left: 3px solid var(--accent); border-radius: 6px; background: var(--panel); max-width: 760px; }
+.runfix-how { line-height: 1.5; }
+.nb-cmd { display: flex; align-items: center; gap: 8px; }
+.nb-cmd code { flex: 1; min-width: 0; box-sizing: border-box; min-height: var(--nb-ctl-h); display: flex; align-items: center;
+  padding: 4px 10px; font: 12px var(--mono); background: var(--ground); border: 1px solid var(--line); border-radius: 4px;
+  white-space: normal; overflow-wrap: anywhere; line-height: 1.5; user-select: all; }
+.runfix-details summary { cursor: pointer; color: var(--text-dim); font-size: 13px; }
+.runfix-details pre { margin: 8px 0 0; padding: 8px 10px; max-height: 180px; overflow: auto; font: 11px/1.5 var(--mono);
+  color: var(--text-dim); background: var(--ground); border: 1px solid var(--line); border-radius: 4px; white-space: pre-wrap; word-break: break-word; }
+
+/* certificate expiry banner (#5) */
+.nb-banner { padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel-2); color: var(--accent); line-height: 1.5; }
+.nb-banner.expired { color: var(--danger); }
+.nb-offscreen { position: fixed; left: -9999px; top: 0; opacity: 0; }
 
 /* a switch inside the config form lays out in a row, not the label column */
 .nb-form label.nb-switch { flex-direction: row; align-items: center; }

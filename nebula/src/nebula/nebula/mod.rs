@@ -1,5 +1,6 @@
 // This file is auto-generated and managed by the flowlang build script.
 use flowlang::rustcmd::Transform;
+pub mod port_status;
 pub mod update_hosts;
 pub mod endpoints;
 pub mod releases;
@@ -43,4 +44,5 @@ pub fn cmdinit(cmds: &mut Vec<(String, Transform, String)>) {
     cmds.push(("ugmpxx1a03e2b03e0p1".to_string(), releases::execute, "".to_string()));
     cmds.push(("gnnlzm1a03e2ba6c8y1".to_string(), endpoints::execute, "".to_string()));
     cmds.push(("rrpqpp1a03e2baf27y1".to_string(), update_hosts::execute, "".to_string()));
+    cmds.push(("ouiwvt1a212cf9227z1".to_string(), port_status::execute, "".to_string()));
 }

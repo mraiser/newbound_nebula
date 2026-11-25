@@ -90,3 +90,30 @@ Variables: `S=/home/gm/Desktop/newbound-scratch`,
   `$S` as the working directory. The `newbound mcp` tools act on the live
   store, so don't use them for writes.
 - Test networks: names `t-*`, UDP ports 4250+.
+
+## Editing the nebula app from the shell (Phase 1 recipe)
+
+All edits run on scratch with `$S` as the working directory, and land in
+the worktree through the symlinks:
+
+- Read a UI facet: `./target/release/newbound exec dev code read_control_facet '{"lib":"nebula","ctl":"nebula","facet":"js"}'`
+  (controls: `nebula`, `network`, `lighthouse`, `member`; facets `html`, `css`, `js`).
+- Replace a facet: `patch_control_facet` with `old_snippet` = the current
+  source, `new_snippet` = the new one, `base` = "", `author`, `label`,
+  `nn_sessionid` = "" (every declared param is required).
+- Rust commands: `patch_command_body` (old/new snippet), `set_command_imports`,
+  `upsert_command` (new command), `set_command_meta` (description; empty
+  `groups` keeps them admin-only). Each one stores, regenerates
+  `nebula/src/…`, and compiles the dylib; the running scratch hot-reloads it
+  (`hotswap: loaded 'nebula' generation N` in `boot.log`).
+- Pass the JSON as one argument; for big payloads, build it with a small
+  script rather than shell quoting.
+- Logging in for screenshots: POST `user` + `pass` to `/app/login` from the
+  shell (reading the password from `users/admin.properties` without printing
+  it), then set the returned `sessionid` cookie in the browser. Sessions
+  don't survive a scratch restart.
+- 2× checks: `document.documentElement.style.zoom='2'`, screenshot, then
+  reload. The browser's zoom action only crops.
+- Test networks on scratch: `t-before` (old 1-year CA), `t-after` (10-year
+  CA from the dialog), `t-soon` (10-day CA, made by hand with `nebula-cert`
+  to show the expiry banner). Ports 4250–4252, subnets 192.168.250–252.

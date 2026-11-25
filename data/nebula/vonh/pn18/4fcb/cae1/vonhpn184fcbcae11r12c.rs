@@ -11,6 +11,31 @@ let f = build.join("version.txt");
 let has_systemd = Path::new("/run/systemd/system").exists();
 jo.put_boolean("systemd", has_systemd);
 
+// What Run now needs on this OS (#2), and whether this host already has it.
+jo.put_object("tun", nb_tun_access(&build.join("nebula"), ""));
+
+// Where Newbound's own web UI listens (#9): a loopback address means phones
+// and other members can't open it over the overlay. Read-only - no config writes.
+let g0 = DataStore::globals();
+let mut http_address = String::new();
+if g0.has("system") {
+  let system = g0.get_object("system");
+  if system.has("config") {
+    http_address = system.get_object("config").try_get_string("http_address").unwrap_or_default();
+  }
+}
+if http_address.is_empty() {
+  // not booted through the app server (e.g. `newbound exec`): read the file,
+  // and fall back to flowlang's own default when the key is absent
+  let cp = nbdir.join("config.properties");
+  if cp.exists() {
+    let p = read_properties(cp.display().to_string());
+    if p.has("http_address") { http_address = p.get_string("http_address"); }
+  }
+  if http_address.is_empty() { http_address = "0.0.0.0".to_string(); }
+}
+jo.put_string("http_address", &http_address);
+
 // networks named in the start= key of botd.properties auto-start at boot
 let mut bootlist: Vec<String> = Vec::new();
 let bp = root.join("botd.properties");
@@ -45,6 +70,10 @@ if f.exists() {
       let mut jo2 = DataObject::new();
       networks.push_object(jo2.clone());
       jo2.put_string("name", &name);
+// certificate lifetimes (#5): the page shows them and warns 30 days ahead
+let certbin = build.join("nebula-cert");
+jo2.put_string("ca_not_after", &nb_cert_not_after(&certbin, &f2.join("ca.crt")));
+jo2.put_string("host_not_after", &nb_cert_not_after(&certbin, &f2.join("host.crt")));
 
       let mut service = false;
       let mut service_running = false;
