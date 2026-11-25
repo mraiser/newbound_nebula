@@ -1,4 +1,4 @@
-# Dev notes — working on the Nebula app without touching live
+# Dev notes — working on the nebula app without touching live
 
 **TL;DR.** Develop against the **scratch** instance
 (`/home/gm/Desktop/newbound-scratch`, HTTP port 33182). Its Nebula library
