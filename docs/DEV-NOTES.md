@@ -117,3 +117,14 @@ the worktree through the symlinks:
 - Test networks on scratch: `t-before` (old 1-year CA), `t-after` (10-year
   CA from the dialog), `t-soon` (10-day CA, made by hand with `nebula-cert`
   to show the expiry banner). Ports 4250–4252, subnets 192.168.250–252.
+
+## Phone tests (Phase 2)
+- Scratch has its **own accounts**: live's `admin` password doesn't work
+  there. Alex reads scratch's admin password himself on Eyevea; sessions log
+  out after 15 minutes (`sessiontimeoutmillis`).
+- Eyevea runs ufw with inbound DROP. A LAN phone test needs UDP <port> from
+  192.168.68.0/24, TCP 33182 from 192.168.68.0/24 (to log in), and TCP 33182
+  `in on <network>` (to open Newbound over the tunnel). Remove them with
+  `sudo ufw status numbered` and then `sudo ufw delete <n>`.
+- Scratch's engine copy has `cap_net_admin` since 2026-11-25. It's lost
+  whenever the engine is reinstalled.

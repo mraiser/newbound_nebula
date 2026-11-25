@@ -40,11 +40,40 @@ Screenshots: `docs/screenshots/phase2/`. Test vectors: `docs/enrollment-samples/
   - the public-address field; the Members list with phones; 2× zoom.
 - Live (port 34241, `home`) untouched: network files and config hashes match this morning's baseline. Live is down only because Eyevea restarted at 20:22 (the Android session's BIOS change).
 
+## Real-phone check (Alex, 2026-11-25, home Wi-Fi)
+Test network `t-phone` on scratch: 192.168.254.0/24, UDP 4250. Eyevea was the
+lighthouse at its LAN address 192.168.68.109:4250, so the router wasn't touched.
+1. Alex logged in to scratch from Safari on the iPhone. Scratch has its own
+   accounts: the `admin` from live doesn't work there.
+2. Members → Add a phone → **Download for Mobile Nebula** → Defined Networking
+   nebula **imported the YAML** (inline PEMs work). That was the §2.1 check, so
+   the button stays.
+3. The site connected: Eyevea logged the handshake with "Alex iPhone test", and
+   Eyevea → 192.168.254.2 pings came back.
+4. `http://192.168.254.1:33182` loaded on the phone, once ufw allowed TCP 33182
+   on the `t-phone` device.
+
+Setup it needed on Eyevea (all run by Alex):
+- `sudo setcap cap_net_admin=+ep …/newbound-scratch/runtime/nebula/bin/nebula` (scratch's copy only);
+- `sudo ufw allow from 192.168.68.0/24 to any port 4250 proto udp`;
+- `sudo ufw allow from 192.168.68.0/24 to any port 33182 proto tcp`;
+- `sudo ufw allow in on t-phone to any port 33182 proto tcp`.
+
+**Finding (for Phase 5 / Marc):** on Linux with ufw (default inbound DROP),
+a phone can join the tunnel and still not open Newbound, because nothing
+allows Newbound's port on the tunnel device. The app should detect an active
+ufw and show the exact `ufw allow in on <network> to any port <http_port>
+proto tcp`, like it does for setcap.
+
 ## Not checked yet
-- **No QR decoder on this machine** (no zbar, no OpenCV, and Linux Chrome has no BarcodeDetector). The QR is proven only through the encoder cross-check; a real phone scan is still needed.
-- **Defined Networking's Mobile Nebula importing the YAML**: ENROLLMENT §2.1 says to check this on a real iPhone before the button ships. That's the Phase 2 step 5 test with Alex.
-- I didn't click the download and copy buttons in the browser, because they would put a test key file in Alex's Downloads and on his clipboard. Their content comes from the same functions as the test vectors.
-- Copying the samples into `newbound-mobile/docs/enrollment-samples/` (ENROLLMENT §6) is waiting on Alex's OK, since another session works in that repo.
+- **QR scan** by a phone: there's no QR decoder on this machine, and nebula
+  mobile isn't installed yet. The QR is proven only through the encoder cross-check.
+- Over mobile data: that needs a UDP port forward on both routers (double NAT).
+- I didn't click the download and copy buttons in the desktop browser (they
+  would put a test key in Alex's Downloads and on his clipboard). Alex's
+  download on the iPhone exercised the Mobile Nebula one.
+- Copying the samples into `newbound-mobile/docs/enrollment-samples/`
+  (ENROLLMENT §6) is waiting on Alex's OK.
 
 ## Notes
 - The payload includes `static_hosts` from the network's mesh map (members' LAN and observed endpoints) when there are any, so a phone on the same Wi-Fi can connect directly.
