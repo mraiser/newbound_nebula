@@ -1065,6 +1065,7 @@ function phoneStep1(err, fix){
       '<label class="ph-publabel" hidden><span class="lbl">the phone\u2019s public key</span><textarea class="ph-pub" spellcheck="false" placeholder="-----BEGIN NEBULA X25519 PUBLIC KEY-----&#10;…&#10;-----END NEBULA X25519 PUBLIC KEY-----"></textarea></label>' +
       '<div class="nb-hint ph-explain"></div>' +
       '<button type="button" class="ph-modeswitch"></button>' +
+      '<div class="ph-b1"><button type="button" class="btn" disabled>Invite over home Wi-Fi</button><span class="nb-hint ph-b1why"></span></div>' +
       '<div class="nbdlg-err" hidden></div>' +
       '<div class="ph-fix" hidden></div>' +
     '</div>' +
@@ -1082,6 +1083,9 @@ function phoneStep1(err, fix){
       : 'Newbound makes the phone\u2019s key and puts everything in one QR code. Anyone who sees the code can join ' + S.selected + ' as this phone, so show it only to the phone. The code disappears after 10 minutes.');
   }
   d.find('.ph-modeswitch').click(function(){ setMode(!d.data('b2')); });
+  // Mode B1 (invite over home Wi-Fi) waits on platform decisions: docs/INVITES.md
+  d.find('.ph-b1why').text('Coming later: it needs a Newbound platform decision. Pasting the phone\u2019s public key keeps its key on the phone too.' +
+    (isLoopback(S.info && S.info.http_address) ? ' (Newbound also isn\u2019t reachable on your network yet.)' : ''));
   setMode(false);
   d.find('.nbdlg-x, .ph-cancel').click(closeModal);
   d.find('.ph-make').click(makePhone);

@@ -195,6 +195,8 @@
 /* Add a phone: B2 (the phone's own key) */
 .ph-modeswitch { align-self: flex-start; padding: 0; color: var(--accent); font-size: 13px; cursor: pointer; background: none; border: 0; }
 .ph-modeswitch:hover { text-decoration: underline; }
+.ph-b1 { display: flex; align-items: center; gap: 10px; padding-top: 2px; }
+.ph-b1 .nb-hint { font-size: 12px; }
 .ph-pub { box-sizing: border-box; width: 100%; min-height: 96px; padding: 8px 9px; font: 12px/1.5 var(--mono); color: var(--text);
   background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; resize: vertical; }
 .ph-dnn { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); }
