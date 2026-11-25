@@ -68,6 +68,9 @@ Variables: `S=/home/gm/Desktop/newbound-scratch`,
    (port 34241) and `nebula -config …/networks/home/config.yml` keep their PIDs and
    start times; file list + `sha256sum` of `networks/*/config.yml` unchanged.
    The 2026-11-25 before/after snapshots matched exactly (only the timestamp differed).
+7. **Baseline screenshot:** log in to scratch, open `/nebula/index.html`:
+   engine `v1.9.7`, "No networks yet." (live would list `home` and `oneshotnet`).
+   ![scratch nebula app, Phase 0 baseline](screenshots/phase0-scratch-home.jpg)
 
 ## Known side effects on scratch
 
