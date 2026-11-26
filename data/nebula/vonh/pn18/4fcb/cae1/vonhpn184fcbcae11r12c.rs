@@ -11,6 +11,65 @@ let f = build.join("version.txt");
 let has_systemd = Path::new("/run/systemd/system").exists();
 jo.put_boolean("systemd", has_systemd);
 
+// What Run now needs on this OS (#2), and whether this host already has it.
+jo.put_object("tun", nb_tun_access(&build.join("nebula"), ""));
+
+// Where Newbound's own web UI listens (#9): a loopback address means phones
+// and other members can't open it over the overlay. Read-only - no config writes.
+let g0 = DataStore::globals();
+let mut http_address = String::new();
+if g0.has("system") {
+  let system = g0.get_object("system");
+  if system.has("config") {
+    http_address = system.get_object("config").try_get_string("http_address").unwrap_or_default();
+  }
+}
+if http_address.is_empty() {
+  // not booted through the app server (e.g. `newbound exec`): read the file,
+  // and fall back to flowlang's own default when the key is absent
+  let cp = nbdir.join("config.properties");
+  if cp.exists() {
+    let p = read_properties(cp.display().to_string());
+    if p.has("http_address") { http_address = p.get_string("http_address"); }
+  }
+  if http_address.is_empty() { http_address = "0.0.0.0".to_string(); }
+}
+jo.put_string("http_address", &http_address);
+
+// Newbound's own port, for the firewall hint below and for phones
+let mut http_port = String::new();
+if g0.has("system") {
+  let system = g0.get_object("system");
+  if system.has("config") {
+    let c = system.get_object("config");
+    if c.has("http_port") { http_port = ndata::data::Data::as_string(c.get_property("http_port")); }
+  }
+}
+if http_port.is_empty() {
+  let cp = nbdir.join("config.properties");
+  if cp.exists() {
+    let p = read_properties(cp.display().to_string());
+    if p.has("http_port") { http_port = p.get_string("http_port"); }
+  }
+}
+jo.put_string("http_port", &http_port);
+
+// Linux + ufw (QA, Phase 5): with ufw on (default inbound DROP), a phone can
+// join the tunnel and still not reach Newbound or the lighthouse port. Rules
+// can't be read without root, so the page only says ufw is on and shows the
+// exact allow rules. Other OS firewalls: not detected (said in the UI).
+let mut ufw = false;
+if std::env::consts::OS == "linux" {
+  if let Ok(s) = fs::read_to_string("/etc/ufw/ufw.conf") {
+    if s.lines().any(|l| l.trim() == "ENABLED=yes") {
+      let active = std::process::Command::new("systemctl").args(["is-active", "ufw"]).output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "active").unwrap_or(true);
+      ufw = active;
+    }
+  }
+}
+jo.put_boolean("ufw", ufw);
+
 // networks named in the start= key of botd.properties auto-start at boot
 let mut bootlist: Vec<String> = Vec::new();
 let bp = root.join("botd.properties");
@@ -45,6 +104,10 @@ if f.exists() {
       let mut jo2 = DataObject::new();
       networks.push_object(jo2.clone());
       jo2.put_string("name", &name);
+// certificate lifetimes (#5): the page shows them and warns 30 days ahead
+let certbin = build.join("nebula-cert");
+jo2.put_string("ca_not_after", &nb_cert_not_after(&certbin, &f2.join("ca.crt")));
+jo2.put_string("host_not_after", &nb_cert_not_after(&certbin, &f2.join("host.crt")));
 
       let mut service = false;
       let mut service_running = false;

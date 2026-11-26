@@ -1,0 +1,32 @@
+vendor/qrcode.js — QR code encoder used by "Add a phone" (runs in the browser, offline)
+
+Upstream: QRCode.js by davidshimjs (https://github.com/davidshimjs/qrcodejs),
+MIT License, Copyright (c) 2012 davidshimjs. It wraps "QRCode for JavaScript"
+by Kazuhiko Arase (http://www.d-project.com/), MIT License, Copyright (c) 2009
+Kazuhiko Arase.
+
+Copy taken from the Firefox 128 ESR source tree
+(testing/web-platform/tests/tools/wave/www/lib/davidshimjs/qrcode.js,
+sha256 6f0987fcdd434a61889ac4ddf0b68ab77b69a4bd159f25337f214f509d133f6a).
+
+Local change (2026-11-25, nebula app): the last lines export QRCode.Model and
+QRCode.typeNumberFor so the app can draw its own SVG, plus a CommonJS export
+for tests. Nothing else changed. Checked against node-qrcode 1.5.4 (MIT):
+for 12 payload lengths (22 to 2900 characters, ECC level L) every module
+matrix is identical for the same version and mask.
+
+--- upstream LICENSE ---
+The MIT License (MIT)
+---------------------
+Copyright (c) 2012 davidshimjs
+
+Permission is hereby granted, free of charge,
+to any person obtaining a copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction,
+including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

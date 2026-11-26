@@ -72,6 +72,21 @@ if f.exists(){
         jo2.put_string("name", &n);
       }
       
+      // expiry + fingerprint for the list (Phase 3); phones record them at
+      // signing, peers added earlier get them from their cert
+      if (!jo2.has("not_after") || !jo2.has("fingerprint")) && path.join("host.crt").exists() {
+        if let Ok(out) = std::process::Command::new(root.join("bin").join("nebula-cert"))
+            .args(["print", "-json", "-path", &path.join("host.crt").display().to_string()]).output() {
+          let s = String::from_utf8_lossy(&out.stdout).to_string();
+          for key in ["notAfter", "fingerprint"] {
+            let pat = format!("\"{}\":\"", key);
+            if let Some(i) = s.find(&pat) {
+              let rest = &s[i + pat.len()..];
+              if let Some(j) = rest.find('"') { jo2.put_string(if key == "notAfter" { "not_after" } else { "fingerprint" }, &rest[..j]); }
+            }
+          }
+        }
+      }
       o.put_object(&name, jo2);
     }
   }

@@ -6,7 +6,29 @@ me.ready = function(){
   $(ME).find('#nwname').val(ME.DATA.value.name);
   $(ME).find('#nwsubnet').val(ME.DATA.value.subnet);
   $(ME).find('#nwport').val(ME.DATA.value.port);
+  checkPort();
 };
+
+// Warn (#8) when another network here already uses the port, or anything on
+// the machine has it bound - nebula would fail to start on it.
+var portTimer = null;
+function checkPort(){
+  var el = $(ME).find('.portwarn');
+  var p = ('' + $(ME).find('#nwport').val()).trim();
+  el.attr('hidden', true).text('');
+  if (!p || isNaN(Number(p))) return;
+  var other = ME.DATA.usedPorts && ME.DATA.usedPorts[p];
+  if (other) { el.removeAttr('hidden').text('Network ' + other + ' already uses UDP ' + p + ' here. Pick another port.'); return; }
+  if (!ME.DATA.checkPort) return;
+  ME.DATA.checkPort(p, function(r){
+    if (('' + $(ME).find('#nwport').val()).trim() != p) return;   // typed on meanwhile
+    if (r && r.bound) el.removeAttr('hidden').text('UDP ' + p + ' is already in use on this machine (another program or tunnel). nebula won\u2019t start on it \u2014 pick another port.');
+  });
+}
+$(ME).find('#nwport').on('input', function(){
+  clearTimeout(portTimer);
+  portTimer = setTimeout(checkPort, 300);
+});
 
 function err(msg){
   var el = $(ME).find('.nbdlg-err');

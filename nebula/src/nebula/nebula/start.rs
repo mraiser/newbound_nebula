@@ -178,7 +178,24 @@ if died {
   g.put_boolean("running", false);
   let log = g.get_string("log");
   o.put_string("status", "err");
-  o.put_string("msg", &format!("nebula exited immediately: {}", log.trim()));
+  // The raw log is for "Details" only; the message is one plain sentence (#2).
+  o.put_string("details", log.trim());
+  let l = log.to_lowercase();
+  let tun_denied = (l.contains("tun") || l.contains("utun") || l.contains("wintun") || l.contains("adapter"))
+    && (l.contains("operation not permitted") || l.contains("permission denied")
+        || l.contains("access is denied") || l.contains("not permitted"));
+  if tun_denied {
+    let t = crate::nebula::nebula::info::nb_tun_access(&bin, &config);
+    o.put_string("reason", "tun_permission");
+    o.put_string("msg", &format!("{} didn't start: this computer didn't let the nebula engine create its network interface.", servicename));
+    o.put_object("tun", t);
+  } else if l.contains("address already in use") || l.contains("only one usage of each socket address") {
+    o.put_string("reason", "port_in_use");
+    o.put_string("msg", &format!("{} didn't start: its UDP port is already in use on this computer. Pick another port in the Service tab and save.", servicename));
+  } else {
+    o.put_string("reason", "exited");
+    o.put_string("msg", &format!("{} stopped right after starting. Its own output is under Details.", servicename));
+  }
   return o;
 }
 

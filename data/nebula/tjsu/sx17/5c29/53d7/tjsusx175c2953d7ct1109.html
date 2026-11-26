@@ -3,6 +3,7 @@
 <div class="nb-app">
   <header class="nb-head">
     <a class="nb-home" href="../app/index.html" title="All apps" aria-label="All apps">&#8962;</a>
+    <button class="nb-back" title="Back (Esc)" aria-label="Back to all networks (Esc)" hidden>&#8592;</button>
     <span class="nb-title">Nebula</span>
     <span class="nb-crumb" hidden></span>
     <span class="nb-spacer"></span>
@@ -23,10 +24,12 @@
         <button class="btn checkupdatebutton">Check for updates</button>
       </div>
       <div class="nb-row engine-install" hidden>
-        <span class="updatemsg"></span>
-        <span class="downloadselect"></span>
+        <span class="updatemsg nb-hint"></span>
+        <label class="nb-field releasefield" hidden><span class="lbl">version</span><select class="nb-select sel-version"></select></label>
+        <label class="nb-field releasefield" hidden><span class="lbl">platform</span><select class="nb-select sel-platform"></select></label>
         <button class="btn btn-primary installupdatebutton" hidden>Install</button>
       </div>
+      <div class="nb-warn platformwarn" hidden></div>
       <div class="nb-row engine-byurl" hidden>
         <input type="text" class="f-releaseurl" placeholder="&hellip;or paste a release tarball URL (nebula-&lt;os&gt;-&lt;arch&gt;.tar.gz)">
         <button class="btn installurlbutton">Install from URL</button>
@@ -61,23 +64,42 @@
       <button class="nb-tab" data-tab="lh">Lighthouses</button>
       <button class="nb-tab tab-members" data-tab="mem">Members</button>
       <button class="nb-tab" data-tab="adv">Advanced</button>
+      <span class="nb-spacer"></span>
+      <div class="nb-tabactions">
+        <span class="nb-dirty" role="status">no changes</span>
+        <button class="btn btn-primary saveconfigbutton" disabled title="Save configuration">Save configuration <kbd class="savekbd"></kbd></button>
+      </div>
     </nav>
 
+    <div class="nb-banner certwarn" role="alert" hidden></div>
+
     <section class="nb-tabpane pane-svc">
-      <div class="nb-row nb-row-between">
-        <div>
-          <span class="lbl">owner</span> <span class="networkowner"></span>
-          <span class="joined-note" hidden>&mdash; you joined this network; members are managed on the owner's instance</span>
-        </div>
-        <button class="btn backbutton">&#8592; All networks</button>
+      <div class="nb-facts">
+        <div><span class="lbl">owner</span> <span class="networkowner"></span>
+          <span class="joined-note" hidden>&mdash; you joined this network; members are managed on the owner's instance</span></div>
+        <div class="expiryline" hidden><span class="lbl">expires</span> <span class="certexpiry"></span></div>
+        <div class="fwline" hidden><span class="lbl">inbound</span> <span class="fwmode"></span></div>
       </div>
+      <div class="nb-hint loopback-hint" hidden></div>
+      <details class="fwhint" hidden>
+        <summary>Firewall: ufw is on &mdash; the rules phones and members need</summary>
+        <div class="nb-hint fwhint-how"></div>
+        <div class="nb-cmd"><code class="fw-cmd1"></code><button class="btn copyfw1">Copy</button></div>
+        <div class="nb-cmd fw-web"><code class="fw-cmd2"></code><button class="btn copyfw2">Copy</button></div>
+      </details>
       <div class="nb-row nb-runrow">
         <span class="tunnelstate"><span class="dot"></span><span class="tunnelstate-msg">checking&hellip;</span></span>
         <button class="btn btn-primary svc-runnow">Run now</button>
         <button class="btn svc-stopnow" hidden>Stop</button>
         <label class="nb-switch"><input type="checkbox" class="svc-boot"><span class="nb-slider"></span> Start at boot</label>
       </div>
-      <div class="nb-hint">The tunnel runs as a supervised child process of Newbound &mdash; no systemd, no sudo.</div>
+      <div class="nb-hint runhint"></div>
+      <div class="nb-callout runfix" hidden>
+        <div class="runfix-how"></div>
+        <div class="nb-cmd" hidden><code class="runfix-cmd"></code><button class="btn copyfix">Copy</button></div>
+        <div class="nb-hint runfix-note"></div>
+        <details class="runfix-details" hidden><summary>Details</summary><pre class="runfix-log"></pre></details>
+      </div>
       <div class="nb-row nb-switchrow systemd-only">
         <label class="nb-switch"><input type="checkbox" class="svc-installed"><span class="nb-slider"></span> Installed as systemd service</label>
         <label class="nb-switch"><input type="checkbox" class="svc-running"><span class="nb-slider"></span> Running (systemd)</label>
@@ -85,6 +107,7 @@
       </div>
       <div class="nb-form">
         <label class="nb-switch"><input type="checkbox" class="f-amlighthouse"><span class="nb-slider"></span> this host is a lighthouse (publicly reachable)</label>
+        <label class="publicaddr" hidden><span class="lbl">public address (for phones)</span><input type="text" class="f-publicaddr" placeholder="What phones dial from the internet, e.g. 203.0.113.10:4243"></label>
         <label><span class="lbl">network interface</span><input type="text" class="f-host" placeholder="IP address to listen on"></label>
         <label><span class="lbl">port</span><input type="number" class="f-port" placeholder="Port to listen on"></label>
         <label><span class="lbl">private subnet</span><input type="text" class="f-subnet" placeholder="Example: 192.168.100.X/24"></label>
@@ -98,10 +121,11 @@
         <div class="lbl">lighthouses</div>
         <button class="btn btn-primary addlighthousebutton">Add lighthouse</button>
       </div>
-      <div class="nb-hint">Optional: with the peer mesh, members already exchange addresses over the encrypted
-        Newbound peer network and hole-punch directly. Add a lighthouse only when some members still cannot
-        reach each other (very strict NATs) &mdash; it must be publicly reachable. Changes apply when you save
-        the configuration.</div>
+      <div class="nb-hint"><b>Newbound peers</b> don't need one: they swap addresses over the encrypted
+        Newbound peer network and connect directly (add one only if a very strict NAT still blocks them).
+        <b>Phones need one:</b> they aren't on the peer network, so a network with phones needs at least one
+        lighthouse with a public address and port the phone can reach from the internet.
+        Changes apply when you save the configuration.</div>
       <div class="lighthouselist"></div>
     </section>
 
@@ -110,6 +134,7 @@
         <div class="lbl">members</div>
         <div class="nb-row">
           <button class="btn syncmeshbutton">Sync mesh</button>
+          <button class="btn addphonebutton">Add a phone</button>
           <button class="btn btn-primary addmemberbutton">Add member</button>
         </div>
       </div>
@@ -122,16 +147,19 @@
         <a href="../peer/index.html">Peers app</a> first.
       </div>
       <div class="memberlist"></div>
+      <div class="blockedbox" hidden>
+        <div class="lbl">removed &mdash; certificates blocked</div>
+        <div class="nb-hint">These members were removed. Their certificates are on this network&rsquo;s blocklist, which
+          this host and every Newbound member refuse (Sync mesh resends it to members that were offline).
+          Phones don&rsquo;t receive the list, but they reach the network through its lighthouses, which refuse a removed phone.</div>
+        <div class="blockedlist"></div>
+      </div>
     </section>
 
     <section class="nb-tabpane pane-adv" hidden>
       <label class="nb-switch"><input type="checkbox" class="f-useyaml"><span class="nb-slider"></span> Override the other tabs with raw YAML</label>
       <textarea class="f-yaml mono" rows="14" spellcheck="false"></textarea>
     </section>
-
-    <footer class="nb-foot">
-      <button class="btn btn-primary saveconfigbutton">Save configuration</button>
-    </footer>
   </main>
 
   <div class="nb-modal" hidden>

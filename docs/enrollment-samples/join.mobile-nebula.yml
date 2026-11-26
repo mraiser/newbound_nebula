@@ -1,0 +1,45 @@
+# Sample iPhone on t-sample (made by the Newbound nebula app)
+# Contains this phone’s private key: import it, then delete the file.
+pki:
+  ca: |
+    -----BEGIN NEBULA CERTIFICATE-----
+    CjoKCHQtc2FtcGxlKNybnNgGMNyhzO4HOiD1gFGscHSvsTscFG1r2cI2q9QQth9N
+    HnvP6nRuXCinNUABEkCowS5uif/kqxhixS5oAxa7pABLMHj8bAXQ6ZZ9aCIkaOd8
+    RjA2idvvBSttsuCe9TTtFYBLTaWBlocLIrRM6CIP
+    -----END NEBULA CERTIFICATE-----
+  cert: |
+    -----BEGIN NEBULA CERTIFICATE-----
+    CoIBCg1TYW1wbGUgaVBob25lEgqE+qOFDID+//8PIgZtZW1iZXIiBXBob25lIgZm
+    YW1pbHkotJ2c2AYw26HM7gc6IGi2U5J/dgATB9qMyoHnJp4F1of9IT1QnpitWUIo
+    oYEuSiCxJV8FfqP5cDI6upEAqwkbsV4yWmv6dYatPxaan2SKdxJA79ywThmjojfN
+    zlYtSNnew9WSs5rq48BorRQVlYE4iUR0IzXRxTlsElnylfAybPcyYWiJyG4RpYF5
+    Y0MEc62tCQ==
+    -----END NEBULA CERTIFICATE-----
+  key: |
+    -----BEGIN NEBULA X25519 PRIVATE KEY-----
+    M+PIXG67Qy7ZxfjedeWdFMYFfbkd3PNCW+YJgm5S4vs=
+    -----END NEBULA X25519 PRIVATE KEY-----
+static_host_map:
+  "192.168.253.1": ["203.0.113.10:4253"]
+lighthouse:
+  am_lighthouse: false
+  interval: 60
+  hosts:
+    - "192.168.253.1"
+listen:
+  host: 0.0.0.0
+  port: 0
+punchy:
+  punch: true
+  respond: true
+tun:
+  mtu: 1300
+firewall:
+  outbound:
+    - port: any
+      proto: any
+      host: any
+  inbound:
+    - port: any
+      proto: icmp
+      host: any
